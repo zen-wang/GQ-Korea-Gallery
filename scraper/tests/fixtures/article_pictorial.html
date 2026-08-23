@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<!--
+  Structural fixture for the GQ Korea article parser.
+
+  The DOM shape, class names and attribute patterns are copied faithfully from a
+  real gqkorea.co.kr article (captured 2026-08-23). The *content* is synthetic:
+  invented titles, names and agencies. This repo is public, so republishing the
+  publication's prose would be redistribution — and the parser only cares about
+  structure, so nothing is lost by substituting the text.
+
+  Edge cases deliberately encoded here, each covered by a test:
+    - credits with and without the "이름 at 에이전시" suffix
+    - a non-person credit row (SPONSORED BY) that must not become a person
+    - tag_list sitting next to the credit dl list and easily confused with it
+    - lazy images: real URL in data-src, src holding a base64 placeholder
+    - a non-lazy image whose real URL is in src
+    - a tracking pixel and a logo that must NOT be collected
+    - images outside the body (author avatar, MUST READ module) that must NOT
+      be collected — PLAN.md calls this out as the main scoping hazard
+    - the same image URL twice in one body
+    - two authors, of which the first is the primary byline
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta property="og:title" content="여름의 끝에서, 검정">
+  <meta property="og:type" content="article">
+  <meta property="article:published_time" content="2026-07-12T03:00:00+00:00">
+  <title>여름의 끝에서, 검정 | GQ KOREA</title>
+</head>
+<body class="post-template-default single single-post postid-400001 single-format-standard">
+
+<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=471731369875124&ev=PageView&noscript=1" />
+
+<header>
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC" width="106" height="56" alt="GQ" data-src="https://www.gqkorea.co.kr/wp-content/themes/gq/assets/images/logo.svg">
+</header>
+
+<article class="article_section view">
+
+  <nav aria-label="breadcrumb" class="category">
+    <ol>
+      <li><a href="/">홈</a></li>
+      <li><a href="/style/">STYLE</a></li>
+      <li><a href="/style/pictorial/">pictorial</a></li>
+    </ol>
+  </nav>
+
+  <h1 class="post_tit">여름의 끝에서, 검정</h1>
+
+  <div class="post_content common_content">
+
+    <p>본문 문단 하나. 파서는 문단 텍스트를 읽지 않는다.</p>
+
+    <!-- lazy: real URL in data-src, src is a placeholder -->
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+         width="1400" height="933" alt=""
+         data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg">
+
+    <p>또 다른 문단.</p>
+
+    <!-- not lazy: real URL already in src -->
+    <img src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa2-1050x1400.jpg"
+         width="1050" height="1400" alt="" data-eio="l">
+
+    <!-- lazy with srcset as well; data-src still wins -->
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+         width="1400" height="1867" alt=""
+         data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg"
+         data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-700x933.jpg 700w">
+
+    <!-- duplicate of the first image: same URL appearing twice in one body -->
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+         width="1400" height="933" alt=""
+         data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg">
+
+  </div>
+
+  <!-- author block: the avatar here must not be collected as a body image -->
+  <div class="profile_wrap">
+    <a href="/author/김에디터/" class="author_link">
+      <img src="https://img.gqkorea.co.kr/gq/2026/05/style_bbbbbbbbbbbb1.jpg" alt="김에디터" width="600" height="600" skip-lazy>
+    </a>
+    <div class="profile_meta">
+      <div class="profile_desc_top">
+        <a href="/author/김에디터/" class="author_link"><h2 class="tit_sub profile_name" id="type_span">김에디터</h2></a>
+        <p class="author_title profile_role" id="editor_title">패션 에디터</p>
+      </div>
+    </div>
+  </div>
+  <div class="profile_wrap">
+    <a href="/author/이기자/" class="author_link"><h2 class="tit_sub profile_name">이기자</h2></a>
+  </div>
+
+  <div class="info_area">
+    <ul class="tag_list">
+      <li><a href="/tag/화보/">화보</a></li>
+      <li><a href="/tag/블랙/">블랙</a></li>
+    </ul>
+    <dl><dt>포토그래퍼</dt><dd>장기평</dd></dl>
+    <dl><dt>패션 에디터</dt><dd>김영훈</dd></dl>
+    <dl><dt>모델</dt><dd>홍태준 at 에스팀</dd></dl>
+    <dl><dt>헤어</dt><dd>한지선 at 비트앤부트</dd></dl>
+    <dl><dt>메이크업</dt><dd>이신애</dd></dl>
+    <dl><dt>SPONSORED BY</dt><dd>어느 브랜드</dd></dl>
+  </div>
+
+</article>
+
+<!-- recommendation module: its images and links must not leak into the article -->
+<div class="post_aside">
+  <div class="relate_group relate_aside">
+    <h2>MUST READ</h2>
+    <ul>
+      <li>
+        <a href="/2026/08/20/another-article/">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+               data-src="https://img.gqkorea.co.kr/gq/2026/08/style_cccccccccccc1-400x400.jpg" alt="">
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
