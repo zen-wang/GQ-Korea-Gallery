@@ -13,7 +13,8 @@ a mobile-first PWA gallery from GitHub Pages.
 |---|---|
 | `web/` | Vite + React + TypeScript + Tailwind CSS v4 + Motion frontend |
 | `scraper/` | Python scraping pipeline (`gallery_scraper` package) |
-| `supabase/migrations/` | SQL schema + RLS policies (lands in Phase 2) |
+| `supabase/` | Schema + RLS migrations, and throwaway-cluster tests for them |
+| `docs/SETUP.md` | Console steps: Supabase project, invite-only auth, R2 bucket, Actions secrets |
 | `.github/workflows/` | `scrape.yml` (cron scraper), `deploy-web.yml` (Pages deploy) |
 | `design-handoff/` | Imported Claude Design prototype — visual source of truth, never imported into the build |
 
