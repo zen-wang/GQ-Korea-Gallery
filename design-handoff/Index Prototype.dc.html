@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%}
+body{background:#dcd8d0;font-family:'Noto Sans KR',system-ui,sans-serif}
+a{color:#14120e}a:hover{opacity:.75}
+*::-webkit-scrollbar{display:none}
+@keyframes fadeIn{from{opacity:0}}
+@keyframes lbIn{from{opacity:0}}
+@keyframes lbOut{to{opacity:0;transform:translateY(24px)}}
+@keyframes sheetIn{from{transform:translateY(100%)}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001s !important;transition-duration:.001s !important}}
+</style>
+</helmet>
+<div style="max-width:520px;margin:0 auto;height:100dvh;background:#ece9e2;color:#14120e;display:flex;flex-direction:column;position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none">
+
+<sc-if value="{{ showIndex }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Index" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeIn .25s ease">
+  <div style="padding:24px 18px 12px;display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(20,18,14,.25);flex:none">
+    <div style="font:700 14px 'Noto Sans KR';letter-spacing:.3em">INDEX</div>
+    <div style="font:400 10px ui-monospace,monospace;color:oklch(0.55 0.19 30)">{{ count }}</div>
+  </div>
+  <div style="display:flex;align-items:stretch;border-bottom:1px solid rgba(20,18,14,.12);flex:none">
+    <div style="display:flex;gap:16px;padding:0 18px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0">
+      <sc-for list="{{ chips }}" as="c" hint-placeholder-count="6"><div style="{{ c.style }}" onClick="{{ c.select }}">{{ c.display }}</div></sc-for>
+    </div>
+    <div style="display:flex;gap:10px;padding:0 16px 0 12px;border-left:1px solid rgba(20,18,14,.12);align-items:center;flex:none">
+      <div onClick="{{ setPost }}" style="{{ postBtnStyle }}">{{ postLabel }}</div>
+      <div onClick="{{ setPhoto }}" style="{{ photoBtnStyle }}">{{ photoLabel }}</div>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;scrollbar-width:none;min-height:0">
+    <div style="padding:16px 14px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ colA }}" as="t" hint-placeholder-count="0">
+          <div data-reveal="{{ t.id }}" style="{{ t.wrapStyle }}" onClick="{{ t.open }}">
+            <sc-if value="{{ showMeta }}" hint-placeholder-val="{{ true }}"><div style="display:flex;justify-content:space-between;font:400 9px ui-monospace,monospace;color:rgba(20,18,14,.55)"><span>{{ t.num }}</span><span>{{ t.code }}</span></div></sc-if>
+            <sc-if value="{{ t.thumb }}" hint-placeholder-val="{{ false }}"><img sc-camel-src="{{ t.thumb }}" onLoad="{{ t.loaded }}" style="{{ t.imgStyle }}" alt=""></sc-if>
+            <sc-if value="{{ t.title }}"><div style="font:600 12.5px 'Noto Serif KR';padding-top:3px">{{ t.title }}</div></sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="{{ colBStyle }}">
+        <sc-for list="{{ colB }}" as="t" hint-placeholder-count="0">
+          <div data-reveal="{{ t.id }}" style="{{ t.wrapStyle }}" onClick="{{ t.open }}">
+            <sc-if value="{{ showMeta }}" hint-placeholder-val="{{ true }}"><div style="display:flex;justify-content:space-between;font:400 9px ui-monospace,monospace;color:rgba(20,18,14,.55)"><span>{{ t.num }}</span><span>{{ t.code }}</span></div></sc-if>
+            <sc-if value="{{ t.thumb }}" hint-placeholder-val="{{ false }}"><img sc-camel-src="{{ t.thumb }}" onLoad="{{ t.loaded }}" style="{{ t.imgStyle }}" alt=""></sc-if>
+            <sc-if value="{{ t.title }}"><div style="font:600 12.5px 'Noto Serif KR';padding-top:3px">{{ t.title }}</div></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showLists }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Lists" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeIn .25s ease">
+  <div style="padding:24px 18px 12px;display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid rgba(20,18,14,.25);flex:none">
+    <div style="font:700 14px 'Noto Sans KR';letter-spacing:.3em">LISTS</div>
+    <div style="font:400 10px ui-monospace,monospace;color:oklch(0.55 0.19 30)">{{ listCount }}</div>
+  </div>
+  <div style="flex:1;overflow-y:auto;scrollbar-width:none;min-height:0">
+    <div style="padding:18px 16px 24px;display:grid;grid-template-columns:1fr 1fr;gap:22px 14px;align-items:start">
+      <sc-for list="{{ listCards }}" as="l" hint-placeholder-count="0">
+        <div style="display:flex;flex-direction:column;gap:8px;cursor:pointer" onClick="{{ l.open }}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px">
+            <sc-for list="{{ l.cells }}" as="c" hint-placeholder-count="0">
+              <div style="width:100%;aspect-ratio:1/1;background:rgba(20,18,14,.07);overflow:hidden;display:flex;align-items:center;justify-content:center">
+                <sc-if value="{{ c.hasSrc }}" hint-placeholder-val="{{ false }}"><img sc-camel-src="{{ c.src }}" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></sc-if>
+                <sc-if value="{{ c.hasText }}"><div style="font:400 10px ui-monospace,monospace;color:rgba(20,18,14,.45)">{{ c.text }}</div></sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font:600 13px 'Noto Serif KR'">{{ l.name }}</span><span style="font:400 9px ui-monospace,monospace;color:rgba(20,18,14,.5)">{{ l.count }}</span></div>
+        </div>
+      </sc-for>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div onClick="{{ openNaming }}" style="width:100%;aspect-ratio:1/1;border:1px dashed rgba(20,18,14,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer">
+          <span style="font:400 18px ui-monospace,monospace;color:oklch(0.55 0.19 30)">＋</span>
+          <span style="font:500 11px 'Noto Sans KR'">New List</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="List detail" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeIn .25s ease">
+  <div style="padding:14px 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(20,18,14,.25);flex:none">
+    <div onClick="{{ backToLists }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;font:400 16px system-ui;cursor:pointer;margin-left:-14px">←</div>
+    <div style="font:600 15px 'Noto Serif KR';flex:1">{{ detailName }}</div>
+    <div style="font:400 10px ui-monospace,monospace;color:oklch(0.55 0.19 30)">{{ detailCount }}</div>
+  </div>
+  <div style="flex:1;overflow-y:auto;scrollbar-width:none;min-height:0">
+    <sc-if value="{{ detailEmpty }}"><div style="padding:48px 18px;font:400 11px ui-monospace,monospace;color:rgba(20,18,14,.5);text-align:center">NO IMAGES YET — SAVE FROM THE LIGHTBOX ＋</div></sc-if>
+    <div style="padding:16px 14px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ detailColA }}" as="t" hint-placeholder-count="0">
+          <div data-reveal="{{ t.id }}" style="{{ t.wrapStyle }}" onClick="{{ t.open }}">
+            <sc-if value="{{ showMeta }}"><div style="display:flex;justify-content:space-between;font:400 9px ui-monospace,monospace;color:rgba(20,18,14,.55)"><span>{{ t.num }}</span><span>{{ t.code }}</span></div></sc-if>
+            <sc-if value="{{ t.thumb }}" hint-placeholder-val="{{ false }}"><img sc-camel-src="{{ t.thumb }}" onLoad="{{ t.loaded }}" style="{{ t.imgStyle }}" alt=""></sc-if>
+            <sc-if value="{{ t.title }}"><div style="font:600 12.5px 'Noto Serif KR';padding-top:3px">{{ t.title }}</div></sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ detailColB }}" as="t" hint-placeholder-count="0">
+          <div data-reveal="{{ t.id }}" style="{{ t.wrapStyle }}" onClick="{{ t.open }}">
+            <sc-if value="{{ showMeta }}"><div style="display:flex;justify-content:space-between;font:400 9px ui-monospace,monospace;color:rgba(20,18,14,.55)"><span>{{ t.num }}</span><span>{{ t.code }}</span></div></sc-if>
+            <sc-if value="{{ t.thumb }}" hint-placeholder-val="{{ false }}"><img sc-camel-src="{{ t.thumb }}" onLoad="{{ t.loaded }}" style="{{ t.imgStyle }}" alt=""></sc-if>
+            <sc-if value="{{ t.title }}"><div style="font:600 12.5px 'Noto Serif KR';padding-top:3px">{{ t.title }}</div></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<div style="height:64px;border-top:1px solid rgba(20,18,14,.25);display:flex;flex:none">
+  <div onClick="{{ goIndex }}" style="{{ tabIndexStyle }}">{{ tabIndexLabel }}</div>
+  <div onClick="{{ goLists }}" style="{{ tabListsStyle }}">{{ tabListsLabel }}</div>
+</div>
+
+<sc-if value="{{ lbOpen }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Lightbox" ref="{{ lbOvRef }}" style="{{ lbOverlayStyle }}">
+  <div style="padding:18px 18px 8px;display:flex;align-items:center;justify-content:space-between;flex:none">
+    <div style="font:600 11px ui-monospace,monospace">{{ lbNum }} <span style="color:oklch(0.55 0.19 30)">/ {{ lbCat }}</span></div>
+    <div onClick="{{ closeLb }}" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;font:400 16px system-ui;cursor:pointer;margin:-10px -14px -10px 0">✕</div>
+  </div>
+  <div ref="{{ lbWrapRef }}" onTouchStart="{{ lbTS }}" onTouchMove="{{ lbTM }}" onTouchEnd="{{ lbTE }}" style="flex:1;min-height:0;position:relative;touch-action:none;overflow:hidden">
+    <div ref="{{ lbImgRef }}" style="position:absolute;inset:0">
+      <img sc-camel-src="{{ lbThumb }}" style="{{ lbThumbStyle }}" alt="">
+      <img sc-camel-src="{{ lbSrc }}" onLoad="{{ lbLoad }}" style="{{ lbFullStyle }}" alt="">
+    </div>
+    <div onClick="{{ navPrev }}" style="position:absolute;left:0;top:0;bottom:0;width:56px;cursor:pointer"></div>
+    <div onClick="{{ navNext }}" style="position:absolute;right:0;top:0;bottom:0;width:56px;cursor:pointer"></div>
+  </div>
+  <div style="padding:12px 18px 0;display:flex;align-items:center;justify-content:space-between;flex:none">
+    <div style="display:flex;gap:8px">
+      <div onClick="{{ openSheet }}" style="{{ plusStyle }}">{{ plusGlyph }}</div>
+      <div onClick="{{ dl }}" style="width:44px;height:44px;border:1px solid rgba(20,18,14,.4);display:flex;align-items:center;justify-content:center;font:400 17px ui-monospace,monospace;cursor:pointer">↓</div>
+    </div>
+    <div style="font:400 11px ui-monospace,monospace;color:rgba(20,18,14,.55)">{{ lbPos }}</div>
+  </div>
+  <div style="padding:12px 18px 16px;overflow-y:auto;max-height:38%;flex:none;scrollbar-width:none">
+    <div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid rgba(20,18,14,.15)"><span style="font:400 10px ui-monospace,monospace;color:rgba(20,18,14,.5)">TITLE</span><span style="font:600 13px 'Noto Serif KR';text-align:right">{{ lbTitle }}</span></div>
+    <div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid rgba(20,18,14,.15)"><span style="font:400 10px ui-monospace,monospace;color:rgba(20,18,14,.5)">DATE</span><span style="font:400 12px 'Noto Sans KR';text-align:right">{{ lbDate }}</span></div>
+    <sc-for list="{{ lbCredits }}" as="cr" hint-placeholder-count="2">
+      <div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid rgba(20,18,14,.15)"><span style="font:400 10px ui-monospace,monospace;color:rgba(20,18,14,.5)">{{ cr.role }}</span><span style="font:400 12px 'Noto Sans KR';text-align:right">{{ cr.name }} <span style="color:rgba(20,18,14,.45)">{{ cr.agency }}</span></span></div>
+    </sc-for>
+    <div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid rgba(20,18,14,.15)"><span style="font:400 10px ui-monospace,monospace;color:rgba(20,18,14,.5)">SOURCE</span><a href="{{ lbUrl }}" target="_blank" style="font:400 12px 'Noto Sans KR';color:oklch(0.55 0.19 30);text-decoration:underline;text-underline-offset:3px">gqkorea.co.kr ↗</a></div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ sheetOpen }}">
+<div data-screen-label="Save to lists" style="position:absolute;inset:0;z-index:40">
+  <div onClick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(20,18,14,.35);animation:fadeIn .25s ease"></div>
+  <div style="position:absolute;left:0;right:0;bottom:0;background:#ece9e2;border-top:1px solid rgba(20,18,14,.3);padding:12px 18px 22px;display:flex;flex-direction:column;animation:sheetIn .32s cubic-bezier(.2,.7,.2,1)">
+    <div style="width:36px;height:4px;border-radius:2px;background:rgba(20,18,14,.3);align-self:center;margin-bottom:14px"></div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid rgba(20,18,14,.25)">
+      <div style="font:700 12px 'Noto Sans KR';letter-spacing:.24em">SAVE TO</div>
+      <div style="font:400 10px ui-monospace,monospace;color:rgba(20,18,14,.5)">{{ sheetNum }}</div>
+    </div>
+    <sc-for list="{{ sheetRows }}" as="r" hint-placeholder-count="3">
+      <div onClick="{{ r.toggle }}" style="display:flex;align-items:center;gap:12px;height:52px;border-bottom:1px solid rgba(20,18,14,.15);cursor:pointer">
+        <div style="{{ r.boxStyle }}">{{ r.check }}</div>
+        <span style="font:500 13px 'Noto Serif KR';flex:1">{{ r.name }}</span>
+        <span style="font:400 10px ui-monospace,monospace;color:rgba(20,18,14,.5)">{{ r.count }}</span>
+      </div>
+    </sc-for>
+    <div onClick="{{ openNamingFromSheet }}" style="display:flex;align-items:center;gap:12px;height:52px;cursor:pointer">
+      <span style="width:18px;text-align:center;font:400 14px ui-monospace,monospace;color:oklch(0.55 0.19 30)">＋</span>
+      <span style="font:500 13px 'Noto Sans KR'">Create New List</span>
+    </div>
+    <div onClick="{{ closeSheet }}" style="margin-top:8px;height:48px;background:#14120e;display:flex;align-items:center;justify-content:center;font:500 12px 'Noto Sans KR';letter-spacing:.18em;color:#ece9e2;cursor:pointer">DONE</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ namingOpen }}">
+<div data-screen-label="New list" style="position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center">
+  <div onClick="{{ closeNaming }}" style="position:absolute;inset:0;background:rgba(20,18,14,.35);animation:fadeIn .2s ease"></div>
+  <div style="position:relative;width:300px;background:#ece9e2;border:1px solid rgba(20,18,14,.3);padding:18px;display:flex;flex-direction:column;gap:14px;animation:fadeIn .2s ease">
+    <div style="font:700 11px 'Noto Sans KR';letter-spacing:.24em">NEW LIST</div>
+    <input ref="{{ nameRef }}" onKeyDown="{{ namingKey }}" placeholder="List name" style="height:44px;border:1px solid rgba(20,18,14,.4);background:transparent;padding:0 12px;font:400 13px 'Noto Sans KR';color:#14120e;outline:none;border-radius:0;user-select:text">
+    <div style="display:flex;gap:8px">
+      <div onClick="{{ closeNaming }}" style="flex:1;height:44px;border:1px solid rgba(20,18,14,.4);display:flex;align-items:center;justify-content:center;font:500 11px 'Noto Sans KR';letter-spacing:.14em;cursor:pointer">CANCEL</div>
+      <div onClick="{{ doCreate }}" style="flex:1;height:44px;background:#14120e;color:#ece9e2;display:flex;align-items:center;justify-content:center;font:500 11px 'Noto Sans KR';letter-spacing:.14em;cursor:pointer">CREATE</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ toastOpen }}"><div style="position:absolute;left:50%;bottom:84px;transform:translateX(-50%);background:#14120e;color:#ece9e2;padding:10px 16px;font:400 11px ui-monospace,monospace;z-index:60;animation:toastIn .25s ease;white-space:nowrap">{{ toastText }}</div></sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;motion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;showMeta&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Grid&quot;},&quot;offsetColumns&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Grid&quot;}}">
+class Component extends DCLogic {
+  state = this.buildInit();
+  ACC = 'oklch(0.55 0.19 30)';
+  CODES = {pictorial:'PIC',sneakers:'SNK',grooming:'GRM',news:'NWS',item:'ITM'};
+
+  buildInit() {
+    const A = (id,title,category,date,author,credits)=>({id,title,category,date,author,url:'https://www.gqkorea.co.kr/'+id,credits});
+    const articles = [
+      A('a1','블랙 앤 화이트','pictorial','2026.07.12','김에디터',[['PHOTOGRAPHER','장기평',null],['FASHION EDITOR','김영훈',null],['MODEL','홍태준','에스팀'],['HAIR','한지선','비트앤부트']]),
+      A('a2','여름의 하이탑','sneakers','2026.06.28','박수진',[['PHOTOGRAPHER','이준호',null],['EDITOR','박수진',null]]),
+      A('a3','수분의 기술','grooming','2026.07.03','이민아',[['PHOTOGRAPHER','김도윤',null],['MODEL','서지훈','YGK플러스']]),
+      A('a4','실루엣의 재구성','pictorial','2026.05.30','김영훈',[['PHOTOGRAPHER','장기평',null],['STYLIST','오세훈',null],['MODEL','최현우','에스팀']]),
+      A('a5','청담동 오후','news','2026.07.18','정우성',[['PHOTOGRAPHER','한서연',null]]),
+      A('a6','데님 아카이브','item','2026.06.15','김에디터',[['PHOTOGRAPHER','문태양',null],['EDITOR','김에디터',null]]),
+      A('a7','모노톤 레이어링','pictorial','2026.04.22','이민아',[['PHOTOGRAPHER','정해린',null],['MODEL','임도현','가베']])
+    ];
+    const dims = {a1:[[600,800],[600,880],[600,760],[800,560],[600,800]],a2:[[600,600],[600,740],[600,820]],a3:[[600,760],[600,640]],a4:[[600,900],[600,800],[900,620],[600,720]],a5:[[800,560],[600,780]],a6:[[600,720],[600,860],[600,600]],a7:[[600,800]]};
+    const images = []; let n = 0;
+    articles.forEach(a=>{ dims[a.id].forEach((d,i)=>{ n++; images.push({id:'i'+n,art:a.id,w:d[0],h:d[1],pos:i+1,num:String(n).padStart(3,'0'),seed:'gq'+n}); }); });
+    this.articles = Object.fromEntries(articles.map(a=>[a.id,a]));
+    this.images = images;
+    this.imgById = Object.fromEntries(images.map(m=>[m.id,m]));
+    let lists = null;
+    try { lists = JSON.parse(localStorage.getItem('gqg.lists.v1')); } catch(e) {}
+    if (!Array.isArray(lists) || !lists.length) lists = [
+      {id:'l1',name:'Monotone',imgIds:['i1','i2','i11','i12','i20']},
+      {id:'l2',name:'Summer Pictorial',imgIds:['i8','i13','i14']},
+      {id:'l3',name:'Sneaker Refs',imgIds:['i6','i7','i8']}
+    ];
+    return {cat:'all',mode:'photo',view:'index',lists,revealed:{},loaded:{},lb:null,lbClosing:false,sheetFor:null,naming:null,detail:null,toast:null};
+  }
+
+  get motionOn() {
+    const rm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return (this.props.motion ?? true) && !rm;
+  }
+  thumb(m){ return 'https://picsum.photos/seed/'+m.seed+'/'+Math.round(m.w/2)+'/'+Math.round(m.h/2)+'?grayscale'; }
+  full(m){ return 'https://picsum.photos/seed/'+m.seed+'/'+m.w+'/'+m.h+'?grayscale'; }
+  curImg(){ const lb = this.state.lb; return lb ? this.imgById[lb.ids[lb.idx]] : null; }
+  getList(id){ return this.state.lists.find(l=>l.id===id); }
+  persist(lists){ try { localStorage.setItem('gqg.lists.v1', JSON.stringify(lists)); } catch(e) {} }
+  toastMsg(t){ clearTimeout(this.toastT); this.setState({toast:t}); this.toastT = setTimeout(()=>this.setState({toast:null}), 2200); }
+
+  componentDidMount() {
+    this.observedIds = new Set();
+    this.io = new IntersectionObserver(entries=>{
+      const hit = entries.filter(e=>e.isIntersecting).map(e=>e.target.getAttribute('data-reveal'));
+      if (!hit.length) return;
+      entries.forEach(e=>{ if (e.isIntersecting) this.io.unobserve(e.target); });
+      this.setState(s=>{ const r = {...s.revealed}; hit.forEach(id=>r[id]=true); return {revealed:r}; });
+    }, {rootMargin:'60px', threshold:0.05});
+    this.observe();
+    this.onKey = (e)=>{
+      if (e.key === 'Escape') {
+        if (this.state.naming) this.setState({naming:null});
+        else if (this.state.sheetFor) this.setState({sheetFor:null});
+        else if (this.state.lb) this.closeLb();
+      } else if (this.state.lb && !this.state.sheetFor && !this.state.naming) {
+        if (e.key === 'ArrowRight') this.navLb(1);
+        if (e.key === 'ArrowLeft') this.navLb(-1);
+      }
+    };
+    window.addEventListener('keydown', this.onKey);
+  }
+  componentDidUpdate(){ this.observe(); }
+  componentWillUnmount(){ this.io && this.io.disconnect(); window.removeEventListener('keydown', this.onKey); }
+  observe() {
+    if (!this.io) return;
+    document.querySelectorAll('[data-reveal]').forEach(el=>{
+      const id = el.getAttribute('data-reveal');
+      if (this.state.revealed[id] || this.observedIds.has(id)) return;
+      this.observedIds.add(id); this.io.observe(el);
+    });
+  }
+
+  makeTile(m, i, extra) {
+    const rev = this.state.revealed[m.id] || !this.motionOn;
+    const ld = this.state.loaded[m.id];
+    const ease = 'cubic-bezier(.2,.7,.2,1)';
+    const dly = (i % 4) * 60;
+    const tile = {
+      id: m.id, num: m.num, code: this.CODES[this.articles[m.art].category],
+      thumb: this.thumb(m),
+      wrapStyle: {display:'flex',flexDirection:'column',gap:'5px',cursor:'pointer',opacity:rev?1:0,transform:rev?'none':'translateY(18px)',transition:this.motionOn?('opacity .55s '+ease+' '+dly+'ms, transform .55s '+ease+' '+dly+'ms'):'none'},
+      imgStyle: {width:'100%',aspectRatio:m.w+' / '+m.h,objectFit:'cover',display:'block',background:'rgba(20,18,14,.07)',filter:(ld||!this.motionOn)?'none':'blur(14px)',transform:(ld||!this.motionOn)?'none':'scale(1.04)',transition:'filter .5s ease, transform .5s ease'},
+      loaded: ()=>this.setState(s=>({loaded:{...s.loaded,[m.id]:true}})),
+      open: (ev)=>this.openLb(m, ev)
+    };
+    return extra ? Object.assign(tile, extra) : tile;
+  }
+
+  openLb(m, ev) {
+    const st = this.state;
+    const seq = (st.view === 'detail' && st.detail) ? this.getList(st.detail).imgIds.slice() : this.images.filter(x=>x.art===m.art).map(x=>x.id);
+    const idx = Math.max(0, seq.indexOf(m.id));
+    let rect = null;
+    try { const el = ev.currentTarget.querySelector('img'); rect = el && el.getBoundingClientRect(); } catch(e) {}
+    const doFlip = this.motionOn && rect;
+    this.setState({lb:{ids:seq,idx,flipDone:!doFlip}}, ()=>{ if (doFlip) requestAnimationFrame(()=>this.runFlip(m, rect)); });
+  }
+  runFlip(m, rect) {
+    const wrap = this.lbWrapEl;
+    if (!wrap) { this.setState(s=>s.lb?{lb:{...s.lb,flipDone:true}}:null); return; }
+    const wr = wrap.getBoundingClientRect();
+    const sc = Math.min(wr.width/m.w, wr.height/m.h);
+    const tw = m.w*sc, th = m.h*sc;
+    const tl = wr.left+(wr.width-tw)/2, tt = wr.top+(wr.height-th)/2;
+    const c = document.createElement('img');
+    c.src = this.thumb(m);
+    Object.assign(c.style,{position:'fixed',left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',objectFit:'cover',zIndex:999,margin:'0',transition:'left .38s cubic-bezier(.2,.7,.25,1), top .38s cubic-bezier(.2,.7,.25,1), width .38s cubic-bezier(.2,.7,.25,1), height .38s cubic-bezier(.2,.7,.25,1)'});
+    document.body.appendChild(c);
+    c.getBoundingClientRect();
+    requestAnimationFrame(()=>Object.assign(c.style,{left:tl+'px',top:tt+'px',width:tw+'px',height:th+'px'}));
+    setTimeout(()=>{ this.setState(s=>s.lb?{lb:{...s.lb,flipDone:true}}:null, ()=>setTimeout(()=>c.remove(), 80)); }, 400);
+  }
+  closeLb() {
+    if (!this.state.lb) return;
+    if (!this.motionOn) { this.setState({lb:null,lbClosing:false}); return; }
+    this.setState({lbClosing:true});
+    setTimeout(()=>this.setState({lb:null,lbClosing:false}), 230);
+  }
+  navLb(dir) {
+    const lb = this.state.lb; if (!lb) return;
+    const ni = lb.idx + dir;
+    if (ni < 0 || ni >= lb.ids.length) return;
+    const el = this.lbImgEl;
+    const commit = ()=>this.setState(s=>s.lb?{lb:{...s.lb,idx:ni,flipDone:true}}:null);
+    if (this.motionOn && el) {
+      el.style.transition = 'opacity .15s ease, transform .15s ease';
+      el.style.opacity = '0';
+      el.style.transform = 'translateX('+(-24*dir)+'px)';
+      setTimeout(()=>{
+        el.style.transition = 'none';
+        el.style.transform = 'translateX('+(24*dir)+'px)';
+        commit();
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          el.style.transition = 'opacity .22s ease, transform .22s cubic-bezier(.2,.7,.2,1)';
+          el.style.opacity = '1'; el.style.transform = 'none';
+        }));
+      }, 150);
+    } else commit();
+  }
+
+  lbTS = (e)=>{ const t = e.touches[0]; this.tch = {x:t.clientX,y:t.clientY,axis:null,dx:0,dy:0}; };
+  lbTM = (e)=>{
+    if (!this.tch) return;
+    const t = e.touches[0];
+    const dx = t.clientX-this.tch.x, dy = t.clientY-this.tch.y;
+    if (!this.tch.axis) { if (Math.abs(dx)>8||Math.abs(dy)>8) this.tch.axis = Math.abs(dx)>Math.abs(dy)?'x':'y'; else return; }
+    if (this.tch.axis === 'x') { this.tch.dx = dx; if (this.lbImgEl){ this.lbImgEl.style.transition='none'; this.lbImgEl.style.transform='translateX('+dx+'px)'; } }
+    else { this.tch.dy = dy; if (dy>0 && this.lbOvEl){ this.lbOvEl.style.transition='none'; this.lbOvEl.style.transform='translateY('+dy+'px)'; } }
+  };
+  lbTE = ()=>{
+    const t = this.tch; this.tch = null;
+    if (!t || !t.axis) return;
+    if (t.axis === 'x') {
+      const el = this.lbImgEl, lb = this.state.lb;
+      const dir = t.dx < 0 ? 1 : -1;
+      const can = lb && lb.idx+dir >= 0 && lb.idx+dir < lb.ids.length;
+      if (Math.abs(t.dx) > 70 && can) {
+        if (el){ el.style.transition='opacity .14s ease, transform .14s ease'; el.style.opacity='0'; el.style.transform='translateX('+(t.dx<0?-80:80)+'px)'; }
+        setTimeout(()=>{
+          if (el){ el.style.transition='none'; el.style.transform='translateX('+(t.dx<0?60:-60)+'px)'; }
+          this.setState(s=>s.lb?{lb:{...s.lb,idx:s.lb.idx+dir,flipDone:true}}:null);
+          requestAnimationFrame(()=>requestAnimationFrame(()=>{ if (el){ el.style.transition='opacity .22s ease, transform .22s cubic-bezier(.2,.7,.2,1)'; el.style.opacity='1'; el.style.transform='none'; } }));
+        }, 140);
+      } else if (el) { el.style.transition='transform .28s cubic-bezier(.2,.7,.2,1)'; el.style.transform='none'; }
+    } else {
+      const ov = this.lbOvEl;
+      if (t.dy > 110) {
+        if (ov){ ov.style.transition='transform .22s ease, opacity .22s ease'; ov.style.transform='translateY(100%)'; ov.style.opacity='0'; }
+        setTimeout(()=>{ if (ov){ ov.style.transition=''; ov.style.transform=''; ov.style.opacity=''; } this.setState({lb:null,lbClosing:false}); }, 220);
+      } else if (ov) { ov.style.transition='transform .3s cubic-bezier(.2,.7,.2,1)'; ov.style.transform='none'; }
+    }
+  };
+
+  dl = async ()=>{
+    const m = this.curImg(); if (!m) return;
+    const url = this.full(m);
+    try {
+      const r = await fetch(url);
+      const b = await r.blob();
+      const u = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      a.href = u; a.download = 'gq-'+m.num+'.jpg';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u), 4000);
+      this.toastMsg('DOWNLOADED GQ-'+m.num+'.JPG');
+    } catch(e) { window.open(url, '_blank'); this.toastMsg('OPENED ORIGINAL IMAGE'); }
+  };
+
+  toggleList(listId) {
+    this.setState(s=>{
+      const lists = s.lists.map(l=>{
+        if (l.id !== listId) return l;
+        const has = l.imgIds.includes(s.sheetFor);
+        return {...l, imgIds: has ? l.imgIds.filter(x=>x!==s.sheetFor) : [...l.imgIds, s.sheetFor]};
+      });
+      this.persist(lists);
+      return {lists};
+    });
+  }
+  doCreate = ()=>{
+    const name = (this.nameEl && this.nameEl.value || '').trim();
+    if (!name) return;
+    this.setState(s=>{
+      const withImg = s.naming && s.naming.withImg && s.sheetFor;
+      const lists = [...s.lists, {id:'l'+Date.now(), name, imgIds: withImg?[s.sheetFor]:[]}];
+      this.persist(lists);
+      return {lists, naming:null};
+    });
+    this.toastMsg('LIST CREATED');
+  };
+  namingKey = (e)=>{ if (e.key==='Enter') this.doCreate(); if (e.key==='Escape') this.setState({naming:null}); };
+
+  renderVals() {
+    const st = this.state;
+    const ACC = this.ACC, MUT = 'rgba(20,18,14,.5)';
+    const cats = ['all','grooming','item','news','pictorial','sneakers'];
+    const chips = cats.map(c=>({
+      display: st.cat===c ? '['+c.toUpperCase()+']' : c.toUpperCase(),
+      style: {flex:'none',height:'44px',display:'flex',alignItems:'center',font:(st.cat===c?'600':'400')+' 11px ui-monospace,monospace',color:st.cat===c?ACC:MUT,cursor:'pointer',letterSpacing:'.04em'},
+      select: ()=>this.setState({cat:c})
+    }));
+    const isPost = st.mode==='post';
+    const colA=[], colB=[];
+    let hA=0, hB=(this.props.offsetColumns??true)?0.35:0;
+    let countLabel;
+    if (isPost) {
+      const arts = Object.values(this.articles).filter(a=>st.cat==='all'||a.category===st.cat).sort((x,y)=>y.date.localeCompare(x.date));
+      countLabel = arts.length+' POSTS';
+      arts.forEach((a,i)=>{
+        const imgs = this.images.filter(m=>m.art===a.id);
+        const cover = imgs[0];
+        const t = this.makeTile(cover, i, {num:this.CODES[a.category], code:'×'+imgs.length, title:a.title});
+        const r = cover.h/cover.w+0.35;
+        if (hA<=hB){colA.push(t);hA+=r;} else {colB.push(t);hB+=r;}
+      });
+    } else {
+      const filtered = this.images.filter(m=>st.cat==='all'||this.articles[m.art].category===st.cat)
+        .sort((x,y)=>{ const d=this.articles[y.art].date.localeCompare(this.articles[x.art].date); return d!==0?d:x.pos-y.pos; });
+      countLabel = filtered.length+' IMAGES';
+      filtered.forEach((m,i)=>{ const t=this.makeTile(m,i); const r=m.h/m.w+0.15; if (hA<=hB){colA.push(t);hA+=r;} else {colB.push(t);hB+=r;} });
+    }
+    const modeBtn = (act)=>({height:'44px',display:'flex',alignItems:'center',font:(act?'600':'400')+' 10px ui-monospace,monospace',color:act?ACC:MUT,cursor:'pointer',letterSpacing:'.04em',flex:'none'});
+
+    const listCards = st.lists.map(l=>{
+      const thumbs = l.imgIds.slice(0,4).map(id=>this.imgById[id]).filter(Boolean).map(m=>this.thumb(m));
+      const cells = [0,1,2,3].map(k=>{
+        if (k===3 && l.imgIds.length>4) return {hasSrc:false,hasText:true,text:'+'+(l.imgIds.length-3),src:''};
+        return {hasSrc:!!thumbs[k],hasText:false,src:thumbs[k]||'',text:''};
+      });
+      return {name:l.name,count:String(l.imgIds.length),cells,open:()=>this.setState({view:'detail',detail:l.id})};
+    });
+
+    const dl2 = st.detail ? this.getList(st.detail) : null;
+    const dImgs = dl2 ? dl2.imgIds.map(id=>this.imgById[id]).filter(Boolean) : [];
+    const detailColA=[], detailColB=[];
+    dImgs.forEach((m,i)=>{ const t=this.makeTile(m,i); (i%2===0?detailColA:detailColB).push(t); });
+
+    const lb = st.lb;
+    const m = this.curImg();
+    const art = m ? this.articles[m.art] : null;
+    const fLoaded = m ? st.loaded['f'+m.id] : false;
+    const flipDone = lb ? lb.flipDone : false;
+    const savedNow = m ? st.lists.some(l=>l.imgIds.includes(m.id)) : false;
+    const btn = {width:'44px',height:'44px',display:'flex',alignItems:'center',justifyContent:'center',font:'400 17px ui-monospace,monospace',cursor:'pointer'};
+
+    const sheetImg = st.sheetFor ? this.imgById[st.sheetFor] : null;
+    const sheetRows = st.lists.map(l=>{
+      const checked = st.sheetFor && l.imgIds.includes(st.sheetFor);
+      return {
+        name:l.name, count:String(l.imgIds.length), check:checked?'✓':'',
+        boxStyle: checked ? {width:'18px',height:'18px',background:ACC,color:'#ece9e2',display:'flex',alignItems:'center',justifyContent:'center',font:'600 11px ui-monospace,monospace',flex:'none'} : {width:'18px',height:'18px',border:'1px solid rgba(20,18,14,.4)',flex:'none',boxSizing:'border-box'},
+        toggle: ()=>this.toggleList(l.id)
+      };
+    });
+
+    const tabStyle = (act)=>({flex:1,display:'flex',alignItems:'center',justifyContent:'center',font:(act?'600':'400')+' 11px ui-monospace,monospace',color:act?ACC:'rgba(20,18,14,.45)',cursor:'pointer'});
+    const isIndex = st.view==='index', isLists = st.view==='lists', isDetail = st.view==='detail';
+
+    return {
+      showIndex: isIndex, showLists: isLists, showDetail: isDetail,
+      count: countLabel,
+      chips, colA, colB,
+      setPost: ()=>this.setState({mode:'post'}),
+      setPhoto: ()=>this.setState({mode:'photo'}),
+      postLabel: isPost?'[POST]':'POST', photoLabel: isPost?'PHOTO':'[PHOTO]',
+      postBtnStyle: modeBtn(isPost), photoBtnStyle: modeBtn(!isPost),
+      colBStyle: {display:'flex',flexDirection:'column',gap:'14px',paddingTop:(this.props.offsetColumns??true)?'44px':'0'},
+      showMeta: this.props.showMeta ?? true,
+      listCount: st.lists.length+' LISTS', listCards,
+      openNaming: ()=>this.setState({naming:{withImg:false}}),
+      detailName: dl2?dl2.name:'', detailCount: dImgs.length+' IMAGES',
+      detailColA, detailColB, detailEmpty: isDetail && !dImgs.length,
+      backToLists: ()=>this.setState({view:'lists',detail:null}),
+      goIndex: ()=>this.setState({view:'index',detail:null}),
+      goLists: ()=>this.setState({view:'lists',detail:null}),
+      tabIndexStyle: tabStyle(isIndex), tabListsStyle: tabStyle(isLists||isDetail),
+      tabIndexLabel: isIndex?'[INDEX]':'INDEX', tabListsLabel: (isLists||isDetail)?'[LISTS]':'LISTS',
+      lbOpen: !!lb,
+      lbOvRef: el=>this.lbOvEl=el, lbWrapRef: el=>this.lbWrapEl=el, lbImgRef: el=>this.lbImgEl=el,
+      lbOverlayStyle: {position:'absolute',inset:0,background:'#ece9e2',zIndex:30,display:'flex',flexDirection:'column',animation:this.motionOn?(st.lbClosing?'lbOut .24s ease forwards':'lbIn .28s ease'):'none'},
+      lbNum: m?m.num:'', lbCat: art?art.category.toUpperCase():'',
+      lbPos: lb?(lb.idx+1)+' / '+lb.ids.length:'',
+      lbTitle: art?art.title:'', lbDate: art?(art.date+' · '+art.author):'',
+      lbCredits: art?art.credits.map(c=>({role:c[0],name:c[1],agency:c[2]?'@ '+c[2]:''})):[],
+      lbUrl: art?art.url:'#',
+      lbThumb: m?this.thumb(m):'', lbSrc: m?this.full(m):'',
+      lbThumbStyle: {position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',filter:'blur(10px)',transform:'scale(1.02)',opacity:(flipDone&&!fLoaded)?1:0,transition:'opacity .35s ease'},
+      lbFullStyle: {position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',opacity:(flipDone&&fLoaded)?1:0,transition:'opacity .3s ease'},
+      lbLoad: ()=>{ const cm=this.curImg(); cm&&this.setState(s=>({loaded:{...s.loaded,['f'+cm.id]:true}})); },
+      lbTS: this.lbTS, lbTM: this.lbTM, lbTE: this.lbTE,
+      closeLb: ()=>this.closeLb(),
+      navPrev: ()=>this.navLb(-1), navNext: ()=>this.navLb(1),
+      openSheet: ()=>{ if (m) this.setState({sheetFor:m.id}); },
+      plusGlyph: savedNow?'✓':'＋',
+      plusStyle: savedNow ? {...btn,border:'1px solid '+ACC,color:ACC} : {...btn,border:'1px solid rgba(20,18,14,.4)',color:'#14120e'},
+      dl: this.dl,
+      sheetOpen: !!st.sheetFor, sheetNum: sheetImg?sheetImg.num:'', sheetRows,
+      closeSheet: ()=>this.setState({sheetFor:null}),
+      openNamingFromSheet: ()=>this.setState({naming:{withImg:true}}),
+      namingOpen: !!st.naming,
+      closeNaming: ()=>this.setState({naming:null}),
+      nameRef: el=>{ this.nameEl=el; el&&setTimeout(()=>el.focus(),50); },
+      namingKey: this.namingKey, doCreate: this.doCreate,
+      toastOpen: !!st.toast, toastText: st.toast||''
+    };
+  }
+}
+</script>
+</body>
+</html>

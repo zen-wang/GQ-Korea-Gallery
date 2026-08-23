@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+/* Design tokens extracted from design-handoff/Index Prototype.dc.html
+   (Claude Design project "GQ Korea Gallery Design", imported 2026-08-22). */
+@theme {
+  /* ---- Color: warm paper + near-black ink + one burnt-orange accent ---- */
+  --color-canvas: #dcd8d0;            /* page behind the app frame */
+  --color-surface: #ece9e2;           /* app background, sheets, dialogs */
+  --color-ink: #14120e;               /* primary text, filled buttons */
+  --color-ink-inverse: #ece9e2;       /* text on ink-filled surfaces */
+  --color-accent: oklch(0.55 0.19 30); /* active chip/tab, counts, links, checked */
+
+  /* Ink alpha ramp — text */
+  --color-ink-meta: rgb(20 18 14 / 0.55);  /* tile index numbers, lightbox position */
+  --color-ink-muted: rgb(20 18 14 / 0.5);  /* inactive chips, field labels, counts */
+  --color-ink-faint: rgb(20 18 14 / 0.45); /* agency suffix, inactive tabs */
+
+  /* Ink alpha ramp — lines & fills */
+  --color-line-strong: rgb(20 18 14 / 0.4); /* button & input borders, checkboxes */
+  --color-scrim: rgb(20 18 14 / 0.35);      /* overlay scrims, dashed placeholder border */
+  --color-line: rgb(20 18 14 / 0.25);       /* header/tab-bar/section dividers */
+  --color-line-soft: rgb(20 18 14 / 0.15);  /* credit rows, sheet rows */
+  --color-line-faint: rgb(20 18 14 / 0.12); /* chip-row divider */
+  --color-well: rgb(20 18 14 / 0.07);       /* image placeholder background */
+
+  /* ---- Typography: Korean serif display / sans UI / mono metadata ---- */
+  --font-sans: "Noto Sans KR", system-ui, sans-serif;
+  --font-serif: "Noto Serif KR", serif;
+  --font-mono: ui-monospace, "SF Mono", monospace;
+
+  /* rem so the reader's system font-size setting scales the UI (phone-only
+     audience). Structural sizes below stay px on purpose — see the spacing
+     block. Comments give the prototype's px value at a 16px root. */
+  --text-meta: 0.5625rem;  /* 9px  — tile index / category code */
+  --text-label: 0.625rem;  /* 10px — counts, credit-role labels, mode toggle */
+  --text-chip: 0.6875rem;  /* 11px — category chips, tabs, toast, dialog titles */
+  --text-body: 0.75rem;    /* 12px — credit values, dates, sheet header */
+  --text-tile: 0.78125rem; /* 12.5px — post-mode tile titles (serif) */
+  --text-title: 0.8125rem; /* 13px — lightbox title, list names, inputs (serif) */
+  --text-screen: 0.875rem; /* 14px — INDEX / LISTS screen titles */
+  --text-heading: 0.9375rem; /* 15px — list-detail heading (serif) */
+
+  --tracking-screen: 0.3em;  /* screen titles */
+  --tracking-header: 0.24em; /* SAVE TO / NEW LIST headers */
+  --tracking-cta: 0.18em;    /* DONE primary button */
+  --tracking-action: 0.14em; /* CANCEL / CREATE buttons */
+  --tracking-chip: 0.04em;   /* chips, tabs, mode toggle */
+
+  /* ---- Spacing & sizes (beyond the default 4px scale) ----
+     Deliberately px, not rem: these hold layout and touch targets stable
+     when the reader scales text up. PHASE0_AMENDMENTS.md §G.4. */
+  --spacing-gutter: 14px;      /* masonry gap + grid side padding */
+  --spacing-inset: 18px;       /* screen horizontal inset */
+  --spacing-col-offset: 44px;  /* second masonry column top offset */
+  --spacing-tap: 44px;         /* minimum tap target (chips, icon buttons) */
+  --spacing-cta: 48px;         /* full-width primary button height */
+  --spacing-row: 52px;         /* sheet list-row height */
+  --spacing-tabbar: 64px;      /* bottom tab bar height */
+  --container-frame: 520px;    /* max app frame width on desktop */
+
+  /* ---- Radii: hard editorial edges everywhere ---- */
+  --radius-*: initial;
+  --radius-handle: 2px; /* the only rounding: bottom-sheet drag handle */
+
+  /* ---- Motion ---- */
+  --ease-editorial: cubic-bezier(0.2, 0.7, 0.2, 1); /* reveals, sheets, snap-backs */
+  --ease-flip: cubic-bezier(0.2, 0.7, 0.25, 1);     /* grid→lightbox flip */
+}
+
+@layer base {
+  html {
+    background-color: var(--color-canvas);
+  }
+  body {
+    @apply bg-surface font-sans text-ink antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}

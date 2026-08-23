@@ -1,0 +1,9 @@
+{
+  "name": "GQ Korea Gallery",
+  "short_name": "INDEX",
+  "display": "standalone",
+  "start_url": ".",
+  "background_color": "#ece9e2",
+  "theme_color": "#ece9e2",
+  "icons": []
+}
