@@ -70,52 +70,36 @@ Every table must show `rowsecurity = true`, and the second query must return
 3. **Authentication → Users → Invite user** for each person, including
    yourself. The `handle_new_user` trigger creates their `profiles` row.
 
-## 4. Cloudflare R2 bucket
+## 4. Image storage — nothing to do
 
-Cloudflare may ask for a payment method before it will enable R2, even though
-the first 10 GB and all egress are free. Nothing here bills unless the bucket
-grows past that.
+Images live in Supabase Storage, in a bucket called `gallery` that migration
+`20260823222834_supabase_storage.sql` creates for you. There is no second
+vendor, no API token, and no card.
 
-1. **Create the bucket.** <https://dash.cloudflare.com> → **R2 object storage**
-   → **Create bucket**. Name it `gq-gallery` → `R2_BUCKET`. Location: automatic
-   is fine, or hint APAC.
+That last point is why: Cloudflare R2 requires a payment method on file to
+activate even inside its free tier. Supabase Storage does not, and this project
+already has a Supabase project.
 
-2. **Turn on public access.** Open the bucket → **Settings** → under **Public
-   Development URL** select **Enable**, then type `allow` to confirm. You get a
-   base URL like `https://pub-<hash>.r2.dev` → `R2_PUBLIC_BASE_URL`.
+What you trade is headroom — **1 GB** on the free plan instead of R2's 10 GB.
+At PLAN.md's settings (WebP, long edge <= 1600px, plus a thumbnail) that is
+roughly **3,000-3,500 images**, about 400 articles. Levers if it gets tight:
+drop the long edge to 1200px and thumbs to 600px, which roughly doubles it, or
+cap backfill depth per category. Egress is not the binding constraint — the
+grid loads thumbnails only (PHASE0_AMENDMENTS §B.4), so a heavy session is
+~25 MB against a 5 GB monthly allowance.
 
-   Cloudflare rate-limits `r2.dev` and labels it development-only. For two
-   people browsing a gallery it is fine to start with, but a masonry grid fires
-   dozens of thumbnail requests per scroll, so if images start failing to load,
-   that is the cause. The upgrade is a custom domain (needs a domain on
-   Cloudflare), which also brings caching and WAF.
+The bucket is **public with unguessable paths** — the same posture
+PHASE0_AMENDMENTS §E chose for R2. `<img src>` works directly and the browser
+caches by URL, which matters on a phone; signed URLs are re-minted per session
+and would defeat that. Paths are `<article_id>/<hash>.webp`, prefixed by a v4
+UUID, and `storage.objects` has RLS enabled with no policies, so the bucket
+cannot be listed or enumerated and only the scraper's service role can write.
 
-   Switching later is cheap but not free: `images.public_url` and
-   `images.thumb_url` store absolute URLs, so a base-URL change needs one
-   `update public.images set public_url = replace(public_url, <old>, <new>)`
-   (and the same for `thumb_url`) alongside the new secret.
+To confirm it exists, in the SQL editor:
 
-3. **Create the API token.** On the R2 page, under **Account Details** → **API
-   Tokens** → **Manage** → **Create API token**.
-   - Permission: **Object Read & Write** — *not* Admin. Admin can create and
-     delete buckets; the scraper only ever needs to put objects.
-   - Scope it to the `gq-gallery` bucket only.
-   - You get **Access Key ID** → `R2_ACCESS_KEY_ID` and **Secret Access Key** →
-     `R2_SECRET_ACCESS_KEY`. **The secret is shown once.** Put it straight into
-     the GitHub secret in step 5; if you lose it, delete the token and make a
-     new one.
-
-4. **Account ID** → `R2_ACCOUNT_ID`, shown in the R2 page sidebar under Account
-   Details.
-
-No CORS rules are needed: the gallery only ever puts R2 URLs in `<img src>`,
-which is not a CORS request. That stays true as long as nothing calls `fetch()`
-on an image — which is one more reason the lightbox download button was cut
-(PHASE0_AMENDMENTS §G.2).
-
-Object keys must be unguessable. The bucket is public and the gallery's privacy
-at the *file* level rests on nobody being able to enumerate keys
-(PHASE0_AMENDMENTS §E).
+```sql
+select id, public, file_size_limit, allowed_mime_types from storage.buckets;
+```
 
 ## 5. GitHub repository secrets
 
@@ -130,28 +114,21 @@ git push -u origin main
 
 | Secret | Used by | Notes |
 |---|---|---|
-| `SUPABASE_URL` | both workflows | |
-| `SUPABASE_PUBLISHABLE_KEY` | `deploy-web.yml` | baked into the public bundle, by design |
-| `SUPABASE_SERVICE_ROLE_KEY` | `scrape.yml` | bypasses RLS — scraper only |
-| `R2_ACCOUNT_ID` | `scrape.yml` | |
-| `R2_ACCESS_KEY_ID` | `scrape.yml` | |
-| `R2_SECRET_ACCESS_KEY` | `scrape.yml` | |
-| `R2_BUCKET` | `scrape.yml` | |
-| `R2_PUBLIC_BASE_URL` | `scrape.yml` | written into `images.public_url` |
+| `SUPABASE_URL` | both workflows | already set |
+| `SUPABASE_PUBLISHABLE_KEY` | `deploy-web.yml` | already set; public by design |
+| `SUPABASE_SERVICE_ROLE_KEY` | `scrape.yml` | **the only one still needed** |
 
-Set them with `gh` rather than the web UI — it prompts without echoing, so no
-secret ends up in your shell history or on screen:
+Set it with `gh` rather than the web UI — it prompts without echoing, so the
+value never reaches your shell history or the screen:
 
 ```bash
 gh secret set SUPABASE_SERVICE_ROLE_KEY   # paste, press enter
-gh secret set R2_ACCOUNT_ID
-gh secret set R2_ACCESS_KEY_ID
-gh secret set R2_SECRET_ACCESS_KEY
-gh secret set R2_BUCKET
-gh secret set R2_PUBLIC_BASE_URL
 ```
 
-`gh secret list` afterwards shows names and timestamps only — values are never
+Find it at **Project Settings → API → service_role**. It bypasses RLS
+entirely, so it belongs only here — never in `web/`, never in a commit.
+
+`gh secret list` afterwards shows names and timestamps only; values are never
 readable again, from the CLI or the UI.
 
 Then **Settings → Pages → Source: GitHub Actions**. Pages from a *private* repo

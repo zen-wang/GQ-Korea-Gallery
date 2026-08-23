@@ -38,7 +38,7 @@ insert into public.article_credits (article_id, position, role_raw, role, person
   (:'art', 1, '포토그래퍼', 'photographer', '장기평', null);
 
 insert into public.images
-  (id, article_id, r2_key, public_url, thumb_url, width, height, position,
+  (id, article_id, storage_path, public_url, thumb_url, width, height, position,
    source_image_url, content_hash)
 values
   (:'img1', :'art', 'gq/a1/01.webp', 'https://cdn.test/1.webp', 'https://cdn.test/1t.webp',
@@ -208,7 +208,7 @@ begin
   -- This is the re-scrape idempotency guarantee (PLAN.md §Verification step 2).
   begin
     insert into public.images
-      (article_id, r2_key, public_url, thumb_url, width, height, position,
+      (article_id, storage_path, public_url, thumb_url, width, height, position,
        source_image_url, content_hash)
     values ('33333333-3333-3333-3333-333333333333', 'gq/a1/dup.webp',
             'https://cdn.test/d.webp', 'https://cdn.test/dt.webp', 800, 800, 3,
@@ -220,7 +220,7 @@ begin
 
   begin
     insert into public.images
-      (article_id, r2_key, public_url, thumb_url, width, height, position,
+      (article_id, storage_path, public_url, thumb_url, width, height, position,
        source_image_url, content_hash)
     values ('33333333-3333-3333-3333-333333333333', 'gq/a1/null.webp',
             'https://cdn.test/n.webp', 'https://cdn.test/nt.webp', 800, 800, 4,
@@ -263,17 +263,17 @@ end $$;
 
 do $$
 begin
-  -- r2_key is deliberately NOT unique: one stored object may back the same
-  -- bytes in two articles, which is how a 10GB R2 budget survives. A unique
+  -- storage_path is deliberately NOT unique: one stored object may back the
+  -- same bytes in two articles, which is how a 1GB budget survives. A unique
   -- index here would also be a second upsert arbiter and break batch writes.
   insert into public.images
-    (article_id, r2_key, public_url, thumb_url, width, height, position,
+    (article_id, storage_path, public_url, thumb_url, width, height, position,
      source_image_url, content_hash)
   values ('33333333-3333-3333-3333-333333333333', 'gq/a1/01.webp',
           'https://cdn.test/3.webp', 'https://cdn.test/3t.webp', 900, 900, 3,
           'https://src.test/3.jpg', 'hash-three');
   delete from public.images where content_hash = 'hash-three';
-  raise notice 'ok  a shared r2_key is allowed across rows';
+  raise notice 'ok  a shared storage_path is allowed across rows';
 end $$;
 
 -- ---------------------------------------------------------------------------
@@ -500,7 +500,7 @@ begin
   values ('77777777-7777-7777-7777-777777777777',
           'https://www.gqkorea.co.kr/test-a2', 'sneakers', '여름의 하이탑', '2026-06-28');
   insert into public.images
-    (article_id, r2_key, public_url, thumb_url, width, height, position,
+    (article_id, storage_path, public_url, thumb_url, width, height, position,
      source_image_url, content_hash)
   values ('77777777-7777-7777-7777-777777777777', 'gq/a2/01.webp',
           'https://cdn.test/a2.webp', 'https://cdn.test/a2t.webp', 1200, 1600, 1,
@@ -523,6 +523,44 @@ begin
   raise notice 'ok  scraper key writes all content, cannot touch curation';
 end $$;
 rollback;
+
+-- ---------------------------------------------------------------------------
+-- G. Storage
+-- ---------------------------------------------------------------------------
+
+do $$
+declare b record;
+begin
+  select * into b from storage.buckets where id = 'gallery';
+  if b is null then raise exception 'storage bucket "gallery" was not created'; end if;
+  if not b.public then
+    raise exception 'gallery bucket is private — <img src> and browser caching both break';
+  end if;
+  if b.file_size_limit is null or b.file_size_limit > 10485760 then
+    raise exception 'gallery bucket has no sane size cap: %', b.file_size_limit;
+  end if;
+  if not (b.allowed_mime_types @> array['image/webp']) then
+    raise exception 'gallery bucket does not accept image/webp: %', b.allowed_mime_types;
+  end if;
+  raise notice 'ok  gallery bucket is public, size-capped and webp-restricted';
+end $$;
+
+do $$
+declare n int;
+begin
+  -- A public bucket serves reads without auth by design, but nobody except
+  -- service_role may WRITE objects. storage.objects ships with RLS on and no
+  -- policies; a policy added later would silently widen that.
+  if not (select relrowsecurity from pg_class where oid = 'storage.objects'::regclass) then
+    raise exception 'SECURITY FAIL: RLS is not enabled on storage.objects';
+  end if;
+  select count(*) into n from pg_policies
+   where schemaname = 'storage' and tablename = 'objects';
+  if n <> 0 then
+    raise exception 'SECURITY FAIL: % unexpected policies on storage.objects', n;
+  end if;
+  raise notice 'ok  storage.objects is deny-all except service_role';
+end $$;
 
 \echo ''
 \echo 'ALL RLS TESTS PASSED'

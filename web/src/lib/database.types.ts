@@ -108,8 +108,8 @@ export type Database = {
           position: number
           public_url: string
           published_date: string | null
-          r2_key: string
           source_image_url: string
+          storage_path: string
           thumb_url: string
           width: number
         }
@@ -122,8 +122,8 @@ export type Database = {
           position: number
           public_url: string
           published_date?: string | null
-          r2_key: string
           source_image_url: string
+          storage_path: string
           thumb_url: string
           width: number
         }
@@ -136,8 +136,8 @@ export type Database = {
           position?: number
           public_url?: string
           published_date?: string | null
-          r2_key?: string
           source_image_url?: string
+          storage_path?: string
           thumb_url?: string
           width?: number
         }

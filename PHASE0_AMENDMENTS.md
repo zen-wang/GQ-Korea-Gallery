@@ -7,7 +7,7 @@ Status: **Phase 0 complete.** PLAN.md remains the master spec; this doc records 
 - Primary user: one friend, browsing on **mobile Chrome / Safari**. No native app.
 - Ship the React SPA as a **PWA**: `manifest.json` (name, icons, `display: standalone`, theme color), iOS meta tags (`apple-mobile-web-app-capable`, apple-touch-icon), so "Add to Home Screen" gives an app-like experience.
 - GitHub Pages + SPA routing: use a **hash router** (simplest) or the 404.html redirect trick. Decide in Phase 2 scaffold; hash router is fine for a private tool.
-- Service worker: optional; if added, cache app shell only — do NOT cache R2 images aggressively (storage bloat on the friend's phone).
+- Service worker: optional; if added, cache app shell only — do NOT cache gallery images aggressively (storage bloat on the friend's phone).
 
 ## B. Mobile-first overrides to Frontend Design (PLAN.md §Frontend Design)
 
@@ -52,9 +52,28 @@ into `web/src/index.css` (Tailwind v4 `@theme`) and `web/src/motion/tokens.ts`
 instead of arriving as a theme.json. Steps 3 and 4 stand unchanged: nothing in
 `web/` imports from `design-handoff/`.
 
-## E. Image hosting decision — confirmed with caveat
+## E. Image hosting decision — confirmed, vendor revised 2026-08-23
 
-R2 re-hosting (as in PLAN.md) is confirmed over hotlinking: GQ's CDN will likely referer-block, and source images rot. This is acceptable **only while the gallery stays private and invite-only** (RLS-gated reads, no public sign-up, unguessable R2 keys). Do not convert this project to public access with re-hosted images; a public/portfolio version must switch to user-uploaded content.
+Re-hosting (as in PLAN.md) is confirmed over hotlinking: GQ's CDN will likely referer-block, and source images rot. This is acceptable **only while the gallery stays private and invite-only** (RLS-gated reads, no public sign-up, unguessable object paths). Do not convert this project to public access with re-hosted images; a public/portfolio version must switch to user-uploaded content.
+
+**Vendor: Supabase Storage, not Cloudflare R2.** R2 requires a payment method
+on file to activate even inside its free tier, and this project is meant to
+cost nothing. Supabase Storage needs no card, is already part of the project,
+and removes a vendor plus five CI secrets. The trade is a **1 GB** ceiling
+instead of R2's 10 GB — roughly 3,000-3,500 images at PLAN.md's WebP/1600px
+settings, about 400 articles. If that binds, the levers in order are: reduce
+the long edge to 1200px, cap backfill depth per category, then move to another
+S3-compatible host (Backblaze B2 is the obvious candidate). Because the schema
+stores a bucket-relative `storage_path` rather than a vendor URL, moving again
+is an uploader change plus one `UPDATE` over `public_url`/`thumb_url`.
+
+The bucket is public with unguessable paths, which is the same posture this
+section already accepted for R2: `<img src>` works directly and the browser
+caches by URL, whereas signed URLs are re-minted per session and would defeat
+caching on the phone-first grid (§B.4). Private-bucket-plus-signed-URLs remains
+the hardening option if the privacy bar ever rises. `storage.objects` keeps
+RLS enabled with no policies, so nothing but the scraper's service role writes,
+and the bucket cannot be listed.
 
 ## F. Scraper scope — unchanged, one clarification
 

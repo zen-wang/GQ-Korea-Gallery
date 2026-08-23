@@ -40,7 +40,7 @@ single policy each turn it red.
 - **`images.content_hash` is the only unique key on `images`.** `insert ... on
   conflict` can arbitrate exactly one constraint, so a second unique index
   would raise instead of merging and abort a whole scrape batch. That is why
-  `r2_key` and `position` are indexed but not unique — and why the same
+  `storage_path` and `position` are indexed but not unique — and why the same
   `unique (article_id, position)` *is* safe on `article_credits`, which a
   re-scrape replaces wholesale rather than upserting.
 - **`images.published_date` is denormalised** from `articles` and maintained by
@@ -51,6 +51,9 @@ single policy each turn it red.
   skip a tile.
 - **`service_role` is withheld from the curation tables.** The scraper's key
   lives in GitHub Actions secrets and never needs anyone's reactions or lists.
+- **Images live in the `gallery` Storage bucket**, created by migration
+  `20260823222834`. Public with unguessable paths so `<img src>` caches; only
+  service_role can write, because `storage.objects` has RLS on and no policies.
 
 ## Left for Phase 3
 

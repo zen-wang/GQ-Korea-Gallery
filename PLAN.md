@@ -6,7 +6,7 @@
 
 **Why:** A personal, curated visual reference tool for fashion/editorial imagery, richer than bookmarking because every image carries structured metadata (category, date, author, full photo credits, source link) and personal curation (reactions, lists).
 
-**Outcome:** A static React gallery on **GitHub Pages**, backed by **Supabase** (Postgres + Auth) and **Cloudflare R2** (image files), fed by a **Python scraper running on GitHub Actions cron**. v1 scope = GQ Korea **Style** tab only (grooming, item, news, pictorial, sneakers), but the scraper is built pluggable so more sites drop in later.
+**Outcome:** A static React gallery on **GitHub Pages**, backed by **Supabase** (Postgres + Auth + Storage), fed by a **Python scraper running on GitHub Actions cron**. v1 scope = GQ Korea **Style** tab only (grooming, item, news, pictorial, sneakers), but the scraper is built pluggable so more sites drop in later.
 
 ---
 
@@ -16,7 +16,7 @@
 |---|---|
 | Audience | **Me + a few friends** → invite-only auth, per-user reactions/lists |
 | User data | **Supabase free backend** (cross-device sync) |
-| Image files | **Cloudflare R2** (10GB free, zero egress) — re-hosted/downloaded |
+| Image files | **Supabase Storage** (1GB free, no card) — re-hosted/downloaded; see PHASE0_AMENDMENTS §E |
 | Site hosting | **GitHub Pages** (all-GitHub) |
 | v1 scrape scope | **GQ Korea "Style" tab** (5 types), pluggable for more |
 | Aesthetic | **Clean editorial grid + smooth motion** (fade/slide-up reveals, gradual text appearance) |
@@ -37,7 +37,7 @@
                                   ┌───────────────────────────┼───────────────┐
                                   ▼                           ▼
                         ┌──────────────────┐      ┌────────────────────────┐
-                        │ Cloudflare R2     │      │ Supabase Postgres       │
+                        │ Supabase Storage  │      │ Supabase Postgres       │
                         │ (image binaries)  │      │ (articles, credits,     │
                         └────────┬──────────┘      │  images, reactions,     │
                                  │  public URLs    │  lists) + Auth + RLS    │
@@ -61,8 +61,8 @@
 
 - **Frontend:** Vite + React + TypeScript, Tailwind CSS, **Motion (Framer Motion)** for animation, `@supabase/supabase-js` client. Deployed to GitHub Pages via Actions.
 - **Backend data/auth:** Supabase (Postgres, Auth with magic-link/Google, Row-Level Security).
-- **Image storage:** Cloudflare R2 (S3-compatible; uploaded via `boto3`), public bucket with unguessable keys.
-- **Scraper:** Python — Playwright (render lazy-loaded pages), selectolax/BeautifulSoup (parse), httpx (download), Pillow (resize→WebP + thumbnail), `supabase-py` (DB), `boto3` (R2).
+- **Image storage:** Supabase Storage (`gallery` bucket, uploaded via `supabase-py`), public with unguessable paths.
+- **Scraper:** Python — Playwright (render lazy-loaded pages), selectolax/BeautifulSoup (parse), httpx (download), Pillow (resize→WebP + thumbnail), `supabase-py` (DB + Storage).
 - **CI/automation:** GitHub Actions (`scrape.yml` cron + `workflow_dispatch`; `deploy-web.yml` for Pages).
 
 ---
@@ -83,7 +83,7 @@ GQ-Korea-Gallery/
 │   │   ├── core/            # SiteAdapter interface, fetch, parse helpers
 │   │   ├── sites/gq_korea.py# first adapter
 │   │   ├── images.py        # download + optimize
-│   │   ├── storage_r2.py    # boto3 uploads
+│   │   ├── storage.py       # Supabase Storage uploads
 │   │   ├── db.py            # supabase-py upserts
 │   │   └── pipeline.py      # discover → scrape → store
 │   ├── tests/               # parser unit tests w/ saved HTML fixtures
@@ -126,7 +126,7 @@ create table article_credits (              -- one row per role/person
 create table images (
   id uuid primary key default gen_random_uuid(),
   article_id uuid not null references articles(id) on delete cascade,
-  r2_key     text not null,
+  storage_path text not null,           -- path in the Supabase Storage bucket
   public_url text not null,
   thumb_url  text,
   width int, height int,
@@ -190,7 +190,7 @@ create table list_images (
    - **Title / date / author(+url)** ← header block.
    - **Body images** ← scoped to the article body container only (exclude recommendation modules); resolve real URLs from `data-src`/`srcset`/rendered `<img>`.
    - **Credits** ← bottom block parsed into `{role_raw, role, person_name, agency}`, handling the `name at agency` form (e.g., `홍태준 at 에스팀`).
-3. Download images → optimize (resize ≤1600px, WebP + small thumb) → upload to R2 → upsert `articles`/`article_credits`/`images`.
+3. Download images → optimize (resize ≤1600px, WebP + small thumb) → upload to Supabase Storage → upsert `articles`/`article_credits`/`images`.
 
 **Robustness/politeness:** rate-limit + concurrency cap, custom UA, respect `robots.txt`, retry/backoff, UTF-8 throughout, dedupe by `source_url` + image `content_hash`. Log parse-failure counts (alert if a run finds 0 new or error rate spikes → likely markup change).
 
@@ -227,7 +227,7 @@ Supabase magic-link/Google gate; per-user reactions & lists. **Lists view** = bo
 
 - `scrape.yml`: `schedule:` cron (e.g., daily) + `workflow_dispatch` (manual). Incremental logic above keeps runs cheap.
 - The daily run **doubles as a Supabase keep-alive** (free projects pause after 1 week idle).
-- Secrets in Actions: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, R2 (`account_id`, `access_key`, `secret`, `bucket`, `public_base_url`).
+- Secrets in Actions: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. (Storage rides on the same project, so there are no separate storage secrets.)
 - `deploy-web.yml`: build `web/` → deploy to GitHub Pages on push to main.
 
 ---
@@ -237,22 +237,22 @@ Supabase magic-link/Google gate; per-user reactions & lists. **Lists view** = bo
 Maps the user's 4 steps → concrete phases.
 
 **Phase 0 — Setup (accounts + scaffold)**
-Create GitHub repo **`zen-wang/GQ-Korea-Gallery`** (monorepo), Supabase project, R2 bucket; scaffold `web/` (Vite+TS+Tailwind+Motion) and `scraper/` (Python); wire Actions secrets.
+Create GitHub repo **`zen-wang/GQ-Korea-Gallery`** (monorepo), Supabase project (Postgres + Auth + Storage); scaffold `web/` (Vite+TS+Tailwind+Motion) and `scraper/` (Python); wire Actions secrets.
 
 **Phase 1 — UI reference research + design direction** *(user step 1)* — ✅ references chosen
 **Chosen references:** [Cosmos](https://www.cosmos.so/) (photo layout) · [Savee](https://savee.com/) (photo layout) · [The FWA](https://thefwa.com/awards/) (timeline clustering) · [mymind](https://mymind.com/) (save-anything-to-notes → future). Design direction distilled into the Frontend Design section above. **Live screenshot capture** (desktop + mobile of each reference) happens at build start via the browser bridge (or user pastes screenshots) — used to lock spacing, type scale, and motion timings into design tokens before coding the grid/lightbox.
 
 **Phase 2 — Schema + infra** *(user step 2)*
-Write Supabase migrations (tables above) + RLS policies; configure R2 bucket/public access; generate TS types; set up invite-only auth. (Most design captured in this doc.)
+Write Supabase migrations (tables above) + RLS policies; create the Storage bucket in a migration; generate TS types; set up invite-only auth. (Most design captured in this doc.)
 
 **Phase 3 — Scraper (TDD)** *(user step 3a)*
-Build GQ adapter parsers test-first against saved HTML fixtures (credits, breadcrumb category, date/author, lazy image URLs). Then pipeline: discover → render → parse → download/optimize → R2 → Supabase. Validate on the pictorial example, then all 5 categories; backfill; add incremental + `scrape.yml` cron.
+Build GQ adapter parsers test-first against saved HTML fixtures (credits, breadcrumb category, date/author, lazy image URLs). Then pipeline: discover → render → parse → download/optimize → Storage → Postgres. Validate on the pictorial example, then all 5 categories; backfill; add incremental + `scrape.yml` cron.
 
 **Phase 4 — Frontend (TDD where valuable)** *(user step 3b)*
-Gallery grid + motion reveals; lightbox + attributes; filters/search; auth gate; reactions; lists; wire to Supabase + R2; `deploy-web.yml` → GitHub Pages.
+Gallery grid + motion reveals; lightbox + attributes; filters/search; auth gate; reactions; lists; wire to Supabase (Postgres + Storage); `deploy-web.yml` → GitHub Pages.
 
 **Phase 5 — Review & QA** *(user step 4)*
-`code-reviewer` + `security-reviewer` (RLS, no service key in client, scraper correctness); Playwright E2E of core flows; perf (image lazy-load, query pagination, R2 CDN); fix issues.
+`code-reviewer` + `security-reviewer` (RLS, no service key in client, scraper correctness); Playwright E2E of core flows; perf (image lazy-load, query pagination, Storage CDN); fix issues.
 
 ---
 
@@ -270,15 +270,15 @@ Gallery grid + motion reveals; lightbox + attributes; filters/search; auth gate;
 2. **Lazy-loaded images:** confirmed base64 placeholders → use Playwright; validate the real CDN domain/URL pattern in Phase 3.
 3. **Markup changes break parsers:** adapter pattern + fixture tests + run-health logging/alerting.
 4. **Supabase auto-pause (1wk idle):** daily scraper keeps it warm.
-5. **Free-tier limits:** optimize images (WebP, ≤1600px) to live within R2's 10GB; 500MB DB is ample for metadata; monitor.
+5. **Free-tier limits:** optimize images (WebP, ≤1600px) to live within Supabase Storage's 1GB (~3,000-3,500 images); 500MB DB is ample for metadata; monitor.
 6. **Anti-bot blocking:** polite cadence, UA, backoff; slow down if throttled.
-7. **R2 public URLs:** images served from a public bucket with unguessable keys (gallery itself is auth-gated). Signed URLs are a future hardening option if stricter privacy is needed.
+7. **Public object URLs:** images served from a public Storage bucket with unguessable paths (gallery itself is auth-gated). Signed URLs are a future hardening option if stricter privacy is needed.
 
 ---
 
 ## Verification (end-to-end)
 
-1. **Scraper (single article):** run pipeline on the pictorial example → assert 1 `articles` row with `category='pictorial'`, 6 `article_credits` rows (photographer 장기평 … model 홍태준 + agency 에스팀 …), ~12 `images` rows, and matching files in R2.
+1. **Scraper (single article):** run pipeline on the pictorial example → assert 1 `articles` row with `category='pictorial'`, 6 `article_credits` rows (photographer 장기평 … model 홍태준 + agency 에스팀 …), ~12 `images` rows, and matching objects in the `gallery` bucket.
 2. **Incremental:** re-run → confirm no duplicates (already-seen skipped).
 3. **Workflow:** trigger `scrape.yml` via `workflow_dispatch` → completes, inserts rows.
 4. **Frontend (local `npm run dev`):** sign in via magic link → grid renders with fade-up motion → click image → lightbox shows full attributes → like/dislike toggles → create list + add image (shows as chip) → filters (category/author/credit) + title search work.

@@ -9,7 +9,7 @@ MODULES = [
     "gallery_scraper.core.adapter",
     "gallery_scraper.sites.gq_korea",
     "gallery_scraper.images",
-    "gallery_scraper.storage_r2",
+    "gallery_scraper.storage",
     "gallery_scraper.db",
     "gallery_scraper.pipeline",
 ]
