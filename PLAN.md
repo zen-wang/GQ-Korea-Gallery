@@ -21,7 +21,7 @@
 | v1 scrape scope | **GQ Korea "Style" tab** (5 types), pluggable for more |
 | Aesthetic | **Clean editorial grid + smooth motion** (fade/slide-up reveals, gradual text appearance) |
 | Scraper language | **Python** (best scraping ecosystem; Node noted as alt) |
-| GitHub account | **github.com/zen-wang** — repo `aesthetic-gallery` (created in Phase 0) |
+| GitHub account | **github.com/zen-wang** — repo `GQ-Korea-Gallery` (public; Pages on the free plan needs it) |
 | UI references | **User-supplied** — picked from curated roundups (Cosmos, Savee, Awwwards Gallery, etc.); see Phase 1 |
 
 ---
@@ -70,7 +70,7 @@
 ## Repository Structure (monorepo)
 
 ```
-aesthetic-gallery/
+GQ-Korea-Gallery/
 ├── web/                       # React frontend (→ GitHub Pages)
 │   ├── src/
 │   │   ├── components/        # GalleryGrid, ImageCard, Lightbox, FilterBar, ListSidebar, AuthGate
@@ -237,7 +237,7 @@ Supabase magic-link/Google gate; per-user reactions & lists. **Lists view** = bo
 Maps the user's 4 steps → concrete phases.
 
 **Phase 0 — Setup (accounts + scaffold)**
-Create GitHub repo **`zen-wang/aesthetic-gallery`** (monorepo), Supabase project, R2 bucket; scaffold `web/` (Vite+TS+Tailwind+Motion) and `scraper/` (Python); wire Actions secrets.
+Create GitHub repo **`zen-wang/GQ-Korea-Gallery`** (monorepo), Supabase project, R2 bucket; scaffold `web/` (Vite+TS+Tailwind+Motion) and `scraper/` (Python); wire Actions secrets.
 
 **Phase 1 — UI reference research + design direction** *(user step 1)* — ✅ references chosen
 **Chosen references:** [Cosmos](https://www.cosmos.so/) (photo layout) · [Savee](https://savee.com/) (photo layout) · [The FWA](https://thefwa.com/awards/) (timeline clustering) · [mymind](https://mymind.com/) (save-anything-to-notes → future). Design direction distilled into the Frontend Design section above. **Live screenshot capture** (desktop + mobile of each reference) happens at build start via the browser bridge (or user pastes screenshots) — used to lock spacing, type scale, and motion timings into design tokens before coding the grid/lightbox.

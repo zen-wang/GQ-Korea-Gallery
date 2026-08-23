@@ -60,7 +60,7 @@ Every table must show `rowsecurity = true`, and the second query must return
    **"Allow new users to sign up"** *off*. This is what makes the gallery
    invite-only; the RLS policies assume it.
 2. **Authentication → URL Configuration**:
-   - **Site URL** → the GitHub Pages URL (`https://zen-wang.github.io/aesthetic-gallery/`).
+   - **Site URL** → the GitHub Pages URL (`https://zen-wang.github.io/GQ-Korea-Gallery/`).
    - **Redirect URLs** → add the same URL, and `http://localhost:5173/` for
      local development.
 
@@ -72,12 +72,41 @@ Every table must show `rowsecurity = true`, and the second query must return
 
 ## 4. Cloudflare R2 bucket
 
-1. Create a bucket (e.g. `gq-gallery`) at <https://dash.cloudflare.com> → R2.
-2. **Settings → Public access**: enable the `r2.dev` subdomain, or attach a
-   custom domain. Copy the resulting base URL → `R2_PUBLIC_BASE_URL`.
-3. **Manage API Tokens → Create token**, permission **Object Read & Write**,
-   scoped to this one bucket. Copy → `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`.
-   The account id is in the R2 sidebar → `R2_ACCOUNT_ID`.
+Cloudflare may ask for a payment method before it will enable R2, even though
+the first 10 GB and all egress are free. Nothing here bills unless the bucket
+grows past that.
+
+1. **Create the bucket.** <https://dash.cloudflare.com> → **R2 object storage**
+   → **Create bucket**. Name it `gq-gallery` → `R2_BUCKET`. Location: automatic
+   is fine, or hint APAC.
+
+2. **Turn on public access.** Open the bucket → **Settings** → under **Public
+   Development URL** select **Enable**, then type `allow` to confirm. You get a
+   base URL like `https://pub-<hash>.r2.dev` → `R2_PUBLIC_BASE_URL`.
+
+   Cloudflare rate-limits `r2.dev` and labels it development-only. For two
+   people browsing a gallery it is fine to start with, but a masonry grid fires
+   dozens of thumbnail requests per scroll, so if images start failing to load,
+   that is the cause. The upgrade is a custom domain (needs a domain on
+   Cloudflare), which also brings caching and WAF.
+
+   Switching later is cheap but not free: `images.public_url` and
+   `images.thumb_url` store absolute URLs, so a base-URL change needs one
+   `update public.images set public_url = replace(public_url, <old>, <new>)`
+   (and the same for `thumb_url`) alongside the new secret.
+
+3. **Create the API token.** On the R2 page, under **Account Details** → **API
+   Tokens** → **Manage** → **Create API token**.
+   - Permission: **Object Read & Write** — *not* Admin. Admin can create and
+     delete buckets; the scraper only ever needs to put objects.
+   - Scope it to the `gq-gallery` bucket only.
+   - You get **Access Key ID** → `R2_ACCESS_KEY_ID` and **Secret Access Key** →
+     `R2_SECRET_ACCESS_KEY`. **The secret is shown once.** Put it straight into
+     the GitHub secret in step 5; if you lose it, delete the token and make a
+     new one.
+
+4. **Account ID** → `R2_ACCOUNT_ID`, shown in the R2 page sidebar under Account
+   Details.
 
 No CORS rules are needed: the gallery only ever puts R2 URLs in `<img src>`,
 which is not a CORS request. That stays true as long as nothing calls `fetch()`
@@ -90,7 +119,14 @@ at the *file* level rests on nobody being able to enumerate keys
 
 ## 5. GitHub repository secrets
 
-**Settings → Secrets and variables → Actions**:
+**Prerequisite:** secrets live on a repo, so the code has to be pushed first.
+The repo name is load-bearing — it decides the Pages URL, which must match the
+Site URL configured in step 3.
+
+```bash
+git remote add origin https://github.com/zen-wang/GQ-Korea-Gallery.git
+git push -u origin main
+```
 
 | Secret | Used by | Notes |
 |---|---|---|
@@ -103,7 +139,26 @@ at the *file* level rests on nobody being able to enumerate keys
 | `R2_BUCKET` | `scrape.yml` | |
 | `R2_PUBLIC_BASE_URL` | `scrape.yml` | written into `images.public_url` |
 
-Then **Settings → Pages → Source: GitHub Actions**.
+Set them with `gh` rather than the web UI — it prompts without echoing, so no
+secret ends up in your shell history or on screen:
+
+```bash
+gh secret set SUPABASE_SERVICE_ROLE_KEY   # paste, press enter
+gh secret set R2_ACCOUNT_ID
+gh secret set R2_ACCESS_KEY_ID
+gh secret set R2_SECRET_ACCESS_KEY
+gh secret set R2_BUCKET
+gh secret set R2_PUBLIC_BASE_URL
+```
+
+`gh secret list` afterwards shows names and timestamps only — values are never
+readable again, from the CLI or the UI.
+
+Then **Settings → Pages → Source: GitHub Actions**. Pages from a *private* repo
+requires GitHub Pro; on the free plan the repo has to be public. That is safe
+here — the gallery's privacy comes from the auth gate and RLS, never from repo
+visibility, and the publishable key is public by design. What must never be
+committed is the `service_role` key.
 
 ## 6. Local development
 
