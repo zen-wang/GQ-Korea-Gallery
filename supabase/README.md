@@ -35,6 +35,13 @@ The suite is mutation-checked: removing the revokes, the `enable row level
 security` statements, the `security definer` on `handle_new_user()`, or a
 single policy each turn it red.
 
+**Known fidelity gap:** the harness above runs whatever local Postgres is on
+PATH — Postgres 14 as written — while the live project is Postgres 17.
+Everything in these migrations is 14-compatible so it passes on both, but that
+is the same class of gap that let the default-privileges bug through once
+already: a test environment that is not the target. Closing it is
+`brew install postgresql@17` and changing the PATH in the command above.
+
 ## Decisions worth knowing
 
 - **`images.content_hash` is the only unique key on `images`.** `insert ... on
