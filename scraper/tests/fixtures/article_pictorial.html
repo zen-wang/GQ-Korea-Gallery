@@ -3,33 +3,133 @@
   Structural fixture for the GQ Korea article parser.
 
   Real DOM structure, invented content. The element tree, class names, attribute
-  patterns and URL shapes are copied faithfully from a real gqkorea.co.kr article
-  (captured 2026-08-23); every word of text in it is made up. This repo is
-  public, and the publication's prose and the individuals' names are not ours to
-  republish. This header is where that policy is written down; the module
-  docstrings of tests/test_discovery.py and tests/test_pipeline.py point back at
-  it for the fixtures and stand-ins they build. The parser only reads structure,
-  so substituting the text costs the tests nothing.
+  patterns and URL shapes are copied faithfully from real gqkorea.co.kr
+  articles — a pictorial captured 2026-08-23, then re-verified 2026-08-24
+  against six captures spanning all five Style categories (pictorial, sneakers,
+  grooming, item, news) plus a 2024 article, so the container nesting below is
+  what every one of those six pages actually has rather than what one page had.
+  Every word of text in it is made up. This repo is public, and the
+  publication's prose and the individuals' names are not ours to republish.
+  This header is where that policy is written down; the module docstrings of
+  tests/test_discovery.py and tests/test_pipeline.py point back at it for the
+  fixtures and stand-ins they build. The parser only reads structure, so
+  substituting the text costs the tests nothing.
 
   That applies to the credits below in particular: every person and every agency
-  named here is an invention, not a real by-line lifted from the captured page.
+  named here is an invention, not a real by-line lifted from a captured page.
+
+  WHY THIS FILE WAS RESTRUCTURED — read before editing it
+  ------------------------------------------------------
+  An earlier version of this fixture put the recommendation module and the
+  author profile OUTSIDE div.post_content, and put the body images in as bare
+  direct children of it. None of that is true of any real page. The fixture had
+  been written to agree with the parser instead of with the site, so the test
+  asserting "recommendation modules are excluded" passed while the live scraper
+  cheerfully re-hosted three other articles' thumbnails and an author avatar
+  into every gallery it built. 337 green tests did not see it; one --dry-run
+  did.
+
+  So the rule for this file is: structure is an OBSERVATION, never an
+  assumption. If you cannot point at a capture that has the shape you are about
+  to add, do not add it — and if a capture has a shape, do not take it out
+  because the fixture reads more tidily without it. Two shapes in particular
+  must stay where they are, because they are the whole reason the bug existed:
+
+    - div.relate_group.relate_content is nested INSIDE div.contt (5 of 6
+      captures have it there; the sixth has no in-body relate_group at all).
+      div.post_content, div.editor and div.contt all contain it, so no
+      container scoping excludes it — it has to be named.
+    - div.profile_sub is a DIRECT CHILD of div.post_content, a sibling of
+      div.editor, and it holds the author avatar.
+
+  The real container chain, identical on all six captures, is
+  div.post_content > div.editor > div.contt, and div.contt is the only element
+  holding editorial images on every page. There is exactly one div.contt per
+  page, and it is always a descendant of div.post_content.
+
+  THE FOUR EDITORIAL SHAPES — all four are encoded below, on purpose
+  ------------------------------------------------------------------
+  Measured inside div.contt across the six captures. Between them these four
+  account for 44 of 44 editorial images — every one, no remainder:
+
+    (a) figure.wp-block-image
+        captures 1,2,3,5,6 — 8 + 3 + 3 + 7 + 3 = 24 images
+    (b) ul.item_list.shopping_list > li.full.shopping_item > div.thum > img
+        capture 4 only — 10 images, and that page has ZERO figures, so this
+        shape carries 100% of its gallery
+    (c) div.gallery_wrap > div.gallery_slider > div.swiper-wrapper >
+        div.swiper-slide
+        captures 5 and 6 — 6 + 2 = 8 images
+    (d) div.content_columns.two > div.content_column
+        capture 6 only — 2 images
+
+  A fixture carrying only (a) and (d) — which is what this file used to be —
+  lets two whole classes of regression through green: adding `ul` or `li` to
+  the chrome exclusion wipes capture 4 entirely (10 of 44), and narrowing the
+  rule to "figures, columns and direct children of div.contt" loses 18 of 44.
+  test_gq_korea.py asserts all four are still here, and asserts that each one
+  still reaches article.images, so flattening this file fails loudly.
+
+  Note the trap inside (b): div.thum is NOT a chrome marker. It wraps capture
+  4's editorial product shots AND the relate_group's thumbnails, in the same
+  document. Both are present below so that blocklisting div.thum fails here.
 
   Edge cases deliberately encoded here, each covered by a test:
     - credits with and without the "이름 at 에이전시" suffix
+    - a credit row naming THREE comma-separated people with one trailing
+      agency, which is how one capture prints its stylist team — one <dd>,
+      three article_credits rows, and the agency on the name it is written
+      beside rather than spread over all three
     - a non-person credit row (SPONSORED BY) that must not become a person
+    - a 출처 (source) row whose <dd> is a link to another publication and
+      whose text is a hostname — a second non-person shape, and the one that
+      put a domain in person_name until the role was screened
     - half-filled credit rows — a <dl> missing its <dt> or its <dd>, a blank
       role, a blank value — which is what the CMS emits when an editor leaves a
       field empty, and which must be skipped rather than stored as a credit
     - tag_list sitting next to the credit dl list and easily confused with it
     - lazy images: real URL in data-src, src holding a base64 placeholder
-    - a non-lazy image whose real URL is in src
+    - a non-lazy image whose real URL is in src (class="skip-lazy", the shape
+      the two-column block uses; it has no <noscript> twin either)
     - a lazy image carrying data-src *and* data-srcset, where data-src wins
     - a lazy image carrying only a srcset, the last fallback in _image_url
-    - a tracking pixel and a logo that must NOT be collected
-    - images outside the body (author avatar, MUST READ module) that must NOT
-      be collected — PLAN.md calls this out as the main scoping hazard
+    - a <noscript> twin of every lazy image, holding the same URL in src —
+      present on 57 of 57 lazy images across the captures, and the reason raw
+      <img> counts inside div.contt run to roughly double the real image count
+    - editorial images that are NOT inside figure.wp-block-image — the
+      shopping roundup, the Swiper gallery and the two-column block — so a
+      figure-scoped rule cannot pass this fixture; on the "item" capture a
+      figure-scoped rule collects zero of ten images
+    - a recommendation module INSIDE div.post_content, whose thumbnails must
+      not be collected — this is the scoping hazard, and it is in-body
+    - an author avatar INSIDE div.post_content, likewise
+    - image-free chrome that also lives inside div.post_content
+      (div.news_group, div.banner_area, div.m-hotpick, div.info_area, and
+      div.ad_wrapper / div.sponsored-txt / ul.share_list inside div.editor):
+      all hydrate client-side, so any rule scoped above div.contt is one theme
+      update away from collecting them
+    - a tracking pixel and a logo, outside the article entirely
     - the same image URL twice in one body
-    - two authors, of which the first is the primary byline
+    - a breadcrumb whose LAST crumb is the article title, not the category:
+      [홈, STYLE, <subcategory>, <title>], which is what five of the six
+      captures print and the sixth prints minus the subcategory. _category
+      scans it in document order for exactly that reason — a reverse scan
+      reads the headline as a candidate category before it ever sees the
+      section, and files any article titled "news" or "item" under its own
+      headline
+    - a by-line with ONE linked author and an unlinked co-author beside it as
+      bare text, which is the only by-line shape the six captures produce —
+      not two linked authors, which is what this fixture used to invent. The
+      co-author is also credited under 글 in div.info_area, exactly as on the
+      one capture that has one, which is why _author keeping only the linked
+      name loses no data. Note that the by-line link carries text, so the
+      img-alt fallback in _author is NOT reached on a real page;
+      test_gq_korea.py pins that branch inline instead of pretending here that
+      a page reaches it.
+    - eight editorial images across the four shapes above, one of them
+      repeated, against 22 <img> inside div.post_content: the pre-fix
+      div.post_content rule collects 11 here (8 editorial, 2 recommendation
+      thumbnails, 1 avatar).
 -->
 <html lang="ko">
 <head>
@@ -37,6 +137,8 @@
   <meta property="og:title" content="여름의 끝에서, 검정">
   <meta property="og:type" content="article">
   <meta property="article:published_time" content="2026-07-12T03:00:00+00:00">
+  <!-- adjacent and four days earlier: selecting this one would mis-date the article -->
+  <meta property="article:modified_time" content="2026-07-08T09:12:00+00:00">
   <title>여름의 끝에서, 검정 | GQ KOREA</title>
 </head>
 <body class="post-template-default single single-post postid-400001 single-format-standard">
@@ -47,88 +149,358 @@
   <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC" width="106" height="56" alt="GQ" data-src="https://www.gqkorea.co.kr/wp-content/themes/gq/assets/images/logo.svg">
 </header>
 
-<article class="article_section view">
+<div id="page" class="site">
+<div class="site-content-container">
+<div id="content" class="site-content">
+<div id="primary" class="content-area">
+<main id="main" class="site-main">
 
-  <nav aria-label="breadcrumb" class="category">
-    <ol>
-      <li><a href="/">홈</a></li>
-      <li><a href="/style/">STYLE</a></li>
-      <li><a href="/style/pictorial/">pictorial</a></li>
-    </ol>
-  </nav>
+<!--
+  The site header menu. Every capture has TWO <nav> elements: this one, and the
+  breadcrumb below. It is here because _category selects on
+  nav[aria-label="breadcrumb"], and without this element that selector is
+  unpinned — a rule that took the page's FIRST nav, or any nav, would still
+  read "pictorial" out of a document that only contained the breadcrumb.
 
-  <h1 class="post_tit">여름의 끝에서, 검정</h1>
+  With it, such a rule reads "grooming" instead, because this menu lists every
+  member of CATEGORIES in alphabetical order and grooming comes first. That is
+  not a hypothetical: it is what all six captures would yield, so every article
+  in the gallery would be filed under grooming.
+-->
+<nav class="nav">
+  <ul class="navbar">
+    <li class="menu-item menu-item-has-children"><a href="/category/style/">STYLE</a>
+      <ul class="sub-menu">
+        <li class="menu-item"><a href="/style/">ALL</a></li>
+        <li class="menu-item"><a href="/style/grooming/">grooming</a></li>
+        <li class="menu-item"><a href="/style/item/">item</a></li>
+        <li class="menu-item"><a href="/style/news/">news</a></li>
+        <li class="menu-item"><a href="/style/pictorial/">pictorial</a></li>
+        <li class="menu-item"><a href="/style/sneakers/">sneakers</a></li>
+      </ul>
+    </li>
+    <li class="menu-item"><a href="/category/culture/">CULTURE</a></li>
+  </ul>
+</nav>
 
-  <div class="post_content common_content">
+<article class="sub_article">
 
-    <p>본문 문단 하나. 파서는 문단 텍스트를 읽지 않는다.</p>
+  <section class="article_visual">
+    <div class="post_top">
 
-    <!-- lazy: real URL in data-src, src is a placeholder -->
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
-         width="1400" height="933" alt=""
-         data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg">
+      <!-- four crumbs, and the last one is the article title, not a category -->
+      <nav aria-label="breadcrumb" class="category">
+        <ol>
+          <li><a href="/">홈</a></li>
+          <li><a href="/style/">STYLE</a></li>
+          <li><a href="/style/pictorial/">pictorial</a></li>
+          <li aria-current="page">여름의 끝에서, 검정</li>
+        </ol>
+      </nav>
 
-    <p>또 다른 문단.</p>
+      <h1 class="post_tit">여름의 끝에서, 검정</h1>
 
-    <!-- not lazy: real URL already in src -->
-    <img src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa2-1050x1400.jpg"
-         width="1050" height="1400" alt="" data-eio="l">
-
-    <!-- lazy with srcset as well; data-src still wins -->
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
-         width="1400" height="1867" alt=""
-         data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg"
-         data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-700x933.jpg 700w">
-
-    <!-- lazy with no data-src at all: only a srcset carries the real URLs -->
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
-         width="1400" height="933" alt=""
-         data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa4-1400x933.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa4-700x467.jpg 700w">
-
-    <!-- duplicate of the first image: same URL appearing twice in one body -->
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
-         width="1400" height="933" alt=""
-         data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg">
-
-  </div>
-
-  <!-- author block: the avatar here must not be collected as a body image -->
-  <div class="profile_wrap">
-    <a href="/author/김에디터/" class="author_link">
-      <img src="https://img.gqkorea.co.kr/gq/2026/05/style_bbbbbbbbbbbb1.jpg" alt="김에디터" width="600" height="600" skip-lazy>
-    </a>
-    <div class="profile_meta">
-      <div class="profile_desc_top">
-        <a href="/author/김에디터/" class="author_link"><h2 class="tit_sub profile_name" id="type_span">김에디터</h2></a>
-        <p class="author_title profile_role" id="editor_title">패션 에디터</p>
+      <div class="post_top_info">
+        <!--
+          The by-line: the FIRST /author/ link on the page, and it has text.
+          Exactly ONE anchor, which is what all six captures print — none has
+          two. A co-author is bare text beside the link, as here; on the one
+          capture that has one, the same name is also credited under 글 in
+          div.info_area below, which is why _author stopping at the link loses
+          nothing. An earlier version of this fixture linked both names, a
+          shape reality never produces, and hid that behaviour entirely.
+        -->
+        <p class="date">2026.07.12.<span class="author"><a href="/author/김에디터/">김에디터</a>, 이기자</span></p>
       </div>
-    </div>
-  </div>
-  <div class="profile_wrap">
-    <a href="/author/이기자/" class="author_link"><h2 class="tit_sub profile_name">이기자</h2></a>
-  </div>
 
-  <div class="info_area">
-    <ul class="tag_list">
-      <li><a href="/tag/화보/">화보</a></li>
-      <li><a href="/tag/블랙/">블랙</a></li>
-    </ul>
-    <dl><dt>포토그래퍼</dt><dd>서윤재</dd></dl>
-    <dl><dt>패션 에디터</dt><dd>문지환</dd></dl>
-    <dl><dt>모델</dt><dd>표도현 at 라온엠</dd></dl>
-    <dl><dt>헤어</dt><dd>여도하 at 청연에이전시</dd></dl>
-    <dl><dt>메이크업</dt><dd>백서리</dd></dl>
-    <dl><dt>SPONSORED BY</dt><dd>어느 브랜드</dd></dl>
-    <!-- half-filled rows, as printed when a credit field is left blank -->
-    <dl><dt>스타일리스트</dt></dl>
-    <dl><dd>역할이 없는 줄</dd></dl>
-    <dl><dt>어시스턴트</dt><dd>   </dd></dl>
-    <dl><dt></dt><dd>이름만 남은 줄</dd></dl>
-  </div>
+    </div>
+  </section>
+
+  <section class="article_section view">
+
+    <div class="post_content common_content">
+
+      <div class="editor">
+
+        <!-- chrome inside div.editor but outside div.contt: image-free today -->
+        <ul class="share_list mo share_list_mo">
+          <li><a href="#"><i class="ic_share"></i></a></li>
+        </ul>
+        <div class="ad_wrapper ad_higher_bg"><div id="mobile-top"></div></div>
+        <script>/* theme inline script, a direct child of div.editor */</script>
+        <div class="sponsored-txt"></div>
+
+        <div class="contt">
+
+          <p>본문 문단 하나. 파서는 문단 텍스트를 읽지 않는다.</p>
+
+          <!-- lazy: real URL in data-src, src is a placeholder, twin in <noscript> -->
+          <figure class="wp-block-image size-large">
+            <img decoding="async" width="1400" height="933" alt=""
+                 src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                 class="wp-image-400011 lazyload" data-sizes="auto"
+                 data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg"><noscript><img decoding="async" width="1400" height="933" alt=""
+                 src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg"
+                 class="wp-image-400011" data-eio="l"></noscript>
+            <figcaption class="wp-element-caption">재킷, 어느 브랜드. 슈즈는 스타일리스트의 것.</figcaption>
+          </figure>
+
+          <p>또 다른 문단.</p>
+
+          <!-- two-column block: NOT a figure, not lazy, real URL in src, no noscript twin -->
+          <div class="content_columns_div">
+            <div id="cb_000000000001" class="content_columns two">
+              <div class="content_column">
+                <img class="skip-lazy" width="1050" height="1400" alt=""
+                     src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa2-1050x1400.jpg">
+              </div>
+              <div class="content_column">
+                <p>두 번째 칼럼에는 사진이 없다.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- lazy with a srcset as well; data-src still wins -->
+          <figure class="wp-block-image size-large">
+            <img decoding="async" width="1400" height="1867" alt=""
+                 src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                 class="wp-image-400013 lazyload" data-sizes="auto"
+                 data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg"
+                 data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-700x933.jpg 700w"><noscript><img decoding="async" width="1400" height="1867" alt=""
+                 src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg"
+                 class="wp-image-400013" data-eio="l"
+                 srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-700x933.jpg 700w"></noscript>
+            <figcaption class="wp-element-caption">코트, 어느 브랜드.</figcaption>
+          </figure>
+
+          <p>세 번째 문단.</p>
+
+          <!-- lazy with no data-src at all: only a srcset carries the real URLs -->
+          <figure class="wp-block-image size-large">
+            <img decoding="async" width="1400" height="933" alt=""
+                 src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                 class="wp-image-400014 lazyload" data-sizes="auto"
+                 data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa4-1400x933.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa4-700x467.jpg 700w"><noscript><img decoding="async" width="1400" height="933" alt=""
+                 src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa4-1400x933.jpg"
+                 class="wp-image-400014" data-eio="l"></noscript>
+          </figure>
+
+          <!--
+            SHAPE (b): the shopping roundup. The "item" capture has ZERO
+            figure.wp-block-image on the page and carries all ten of its
+            pictures in exactly this chain —
+            ul.item_list.shopping_list > li.full.shopping_item > div.thum > img.
+            Two consequences, and both are traps a green suite has already
+            walked into once:
+              * adding `ul` or `li` to the chrome exclusion wipes this article
+                whole, and the "item" capture with it;
+              * div.thum is NOT a chrome marker. The relate_group below uses
+                the same class for its thumbnails, so blocklisting div.thum
+                takes 10 of the corpus's 44 editorial images with it.
+          -->
+          <ul class="item_list shopping_list">
+            <li class="full shopping_item" slot="view_shopping_item">
+              <div class="thum">
+                <img decoding="async" alt="" class="lazyload"
+                     src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                     data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa5-930x861.jpg"><noscript><img decoding="async" alt="" data-eio="l"
+                     src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa5-930x861.jpg"></noscript>
+              </div>
+              <h3 class="desc"><span class="brand">지어낸 브랜드</span>지어낸 재킷 이름</h3>
+              <p></p>
+              <a class="btn" target="_blank" data-name="지어낸 재킷 이름"
+                 href="https://example.invalid/product/5/">구매하러 가기</a>
+            </li>
+            <li class="full shopping_item" slot="view_shopping_item">
+              <div class="thum">
+                <img decoding="async" alt="" class="lazyload"
+                     src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                     data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa6-930x861.jpg"><noscript><img decoding="async" alt="" data-eio="l"
+                     src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa6-930x861.jpg"></noscript>
+              </div>
+              <h3 class="desc"><span class="brand">다른 지어낸 브랜드</span>지어낸 니트 이름</h3>
+              <p></p>
+              <a class="btn" target="_blank" data-name="지어낸 니트 이름"
+                 href="https://example.invalid/product/6/">구매하러 가기</a>
+            </li>
+          </ul>
+
+          <p>네 번째 문단.</p>
+
+          <!--
+            SHAPE (c): the Swiper gallery, on the "news" capture (6 of its 13
+            images) and the 2024 one (2 of 7). Nothing here is a figure and
+            nothing here is a bare child of div.contt, so both of the narrower
+            rules that have been proposed for this parser drop it silently.
+            The counter and the prev/next buttons are image-free in the raw
+            HTML; the slides are where the pictures are.
+          -->
+          <div class="gallery_wrap">
+            <div class="gallery_slider">
+              <div class="swiper-wrapper">
+                <div class="swiper-slide">
+                  <img width="1050" height="1400" decoding="async" alt="" data-sizes="auto"
+                       class="attachment-large size-large lazyload" caption="지어낸 갤러리 캡션 하나."
+                       src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                       data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa7-1050x1400.jpg"
+                       data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa7-1050x1400.jpg 1050w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa7-697x930.jpg 697w"><noscript><img width="1050" height="1400" decoding="async" alt="" data-eio="l"
+                       class="attachment-large size-large" caption="지어낸 갤러리 캡션 하나."
+                       src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa7-1050x1400.jpg"
+                       srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa7-1050x1400.jpg 1050w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa7-697x930.jpg 697w"></noscript>
+                </div>
+                <div class="swiper-slide">
+                  <img width="1050" height="1400" decoding="async" alt="" data-sizes="auto"
+                       class="attachment-large size-large lazyload" caption="지어낸 갤러리 캡션 둘."
+                       src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                       data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa8-1050x1400.jpg"
+                       data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa8-1050x1400.jpg 1050w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa8-697x930.jpg 697w"><noscript><img width="1050" height="1400" decoding="async" alt="" data-eio="l"
+                       class="attachment-large size-large" caption="지어낸 갤러리 캡션 둘."
+                       src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa8-1050x1400.jpg"
+                       srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa8-1050x1400.jpg 1050w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa8-697x930.jpg 697w"></noscript>
+                </div>
+              </div>
+              <div class="counter"><span class="current">1</span>/<span class="total">2</span></div>
+              <div class="swiper-button-prev"></div>
+              <div class="swiper-button-next"></div>
+            </div>
+            <p class="caption">지어낸 갤러리 캡션 셋.</p>
+          </div>
+
+          <!-- duplicate of the first image: same URL appearing twice in one body -->
+          <figure class="wp-block-image size-large">
+            <img decoding="async" width="1400" height="933" alt=""
+                 src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                 class="wp-image-400011 lazyload" data-sizes="auto"
+                 data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg"><noscript><img decoding="async" width="1400" height="933" alt=""
+                 src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa1-1400x933.jpg"
+                 class="wp-image-400011" data-eio="l"></noscript>
+          </figure>
+
+          <!--
+            THE HAZARD. Other articles' thumbnails, nested inside div.contt —
+            inside div.editor, inside div.post_content. Every container scoping
+            contains it; only naming it keeps it out.
+          -->
+          <div class="relate_group relate_content">
+            <h2>관련기사</h2>
+            <ul>
+              <li slot="view_relate_content">
+                <a href="/2026/06/30/another-article/">
+                  <div class="thum">
+                    <img decoding="async" width="500" height="500" alt="" class="lazyload lazyload"
+                         src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                         data-src="https://img.gqkorea.co.kr/gq/2026/06/style_cccccccccccc1-500x500.jpg"><noscript><img decoding="async" width="500" height="500" alt="" class="lazyload"
+                         src="https://img.gqkorea.co.kr/gq/2026/06/style_cccccccccccc1-500x500.jpg" data-eio="l"></noscript>
+                  </div>
+                  <div class="content">
+                    <p class="category">pictorial</p>
+                    <h3>다른 기사 제목 하나</h3>
+                    <p class="date">2026.06.30.<span>by 어느 에디터</span></p>
+                  </div>
+                </a>
+              </li>
+              <li slot="view_relate_content">
+                <a href="/2026/06/28/yet-another-article/">
+                  <div class="thum">
+                    <img decoding="async" width="500" height="500" alt="" class="lazyload lazyload"
+                         src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+                         data-src="https://img.gqkorea.co.kr/gq/2026/06/style_cccccccccccc2-500x500.jpg"><noscript><img decoding="async" width="500" height="500" alt="" class="lazyload"
+                         src="https://img.gqkorea.co.kr/gq/2026/06/style_cccccccccccc2-500x500.jpg" data-eio="l"></noscript>
+                  </div>
+                  <div class="content">
+                    <p class="category">sneakers</p>
+                    <h3>다른 기사 제목 둘</h3>
+                    <p class="date">2026.06.28.<span>by 어느 에디터</span></p>
+                  </div>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+        </div><!-- /div.contt -->
+      </div><!-- /div.editor -->
+
+      <!-- image-free chrome, all direct children of div.post_content -->
+      <div class="news_group list_v3">
+        <h2>최신기사</h2>
+        <div class="recently_list">
+          <ul>
+            <li slot="view_recent"><a href="/2026/07/11/some-other-post/"><h3 class="s_tit">최신기사 제목</h3></a></li>
+          </ul>
+        </div>
+      </div>
+      <div id="mobile-inRead-4" class="banner_area banner_m"></div>
+
+      <!-- THE OTHER HAZARD: the author avatar, inside div.post_content -->
+      <div class="profile_sub" authors="1">
+        <div class="profile_wrap">
+          <div class="profile_pic">
+            <a href="/author/김에디터/" class="author_link"><img src="https://img.gqkorea.co.kr/gq/2026/05/style_bbbbbbbbbbbb1.jpg" alt="김에디터" width="600" height="600" skip-lazy=""></a>
+          </div>
+          <div class="profile_meta">
+            <div class="profile_desc_top">
+              <a href="/author/김에디터/" class="author_link"><h2 class="tit_sub profile_name" id="type_span">김에디터</h2></a>
+              <p class="author_title profile_role" id="editor_title">패션 에디터</p>
+            </div>
+            <div class="profile_desc_wrap">
+              <p class="profile_desc">지어낸 소개글 한 줄.</p>
+              <a href="/author/김에디터/" class="profile_desc_more">프로필 전체 보기</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info_area">
+        <ul class="tag_list">
+          <li><a href="/tag/화보/">화보</a></li>
+          <li><a href="/tag/블랙/">블랙</a></li>
+        </ul>
+        <!-- the by-line's unlinked co-author, credited here — capture-2's shape -->
+        <dl><dt>글</dt><dd>이기자</dd></dl>
+        <dl><dt>포토그래퍼</dt><dd>서윤재</dd></dl>
+        <dl><dt>패션 에디터</dt><dd>문지환</dd></dl>
+        <!--
+          THREE people on one row, and only the last carries the agency. This
+          is the observed multi-person shape: one capture's stylist row prints
+          three comma-separated names with a single trailing "at <에이전시>".
+          One <dd> here is three article_credits rows, and the two names ahead
+          of the suffix get agency NULL — see split_credit_people for why the
+          agency is not distributed across the list.
+        -->
+        <dl><dt>스타일리스트</dt><dd>정하람, 오세빈, 남규현 at Mureu Studio</dd></dl>
+        <dl><dt>모델</dt><dd>표도현 at 라온엠</dd></dl>
+        <dl><dt>헤어</dt><dd>여도하 at 청연에이전시</dd></dl>
+        <dl><dt>메이크업</dt><dd>백서리</dd></dl>
+        <dl><dt>SPONSORED BY</dt><dd>어느 브랜드</dd></dl>
+        <!--
+          The syndication row: a <dd> that is a LINK to another title, whose
+          text is that site's hostname. One capture prints exactly this, and
+          before 출처 was screened it stored a domain string in person_name.
+          Both the href and the hostname below are invented.
+        -->
+        <dl><dt>출처</dt><dd><a href="https://example.invalid/story/some-other-title/" target="_blank">www.example.invalid</a></dd></dl>
+        <!-- half-filled rows, as printed when a credit field is left blank -->
+        <dl><dt>프로덕션</dt></dl>
+        <dl><dd>역할이 없는 줄</dd></dl>
+        <dl><dt>어시스턴트</dt><dd>   </dd></dl>
+        <dl><dt></dt><dd>이름만 남은 줄</dd></dl>
+      </div>
+
+      <div class="m-hotpick section_pick pick_ad--mobile hotpick--view"></div>
+
+    </div><!-- /div.post_content -->
+
+  </section>
 
 </article>
 
-<!-- recommendation module: its images and links must not leak into the article -->
+</main>
+</div>
+</div>
+</div>
+</div>
+
+<!-- the aside recommendation module: outside the article, and outside post_content -->
 <div class="post_aside">
   <div class="relate_group relate_aside">
     <h2>MUST READ</h2>
@@ -136,7 +508,7 @@
       <li>
         <a href="/2026/08/20/another-article/">
           <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
-               data-src="https://img.gqkorea.co.kr/gq/2026/08/style_cccccccccccc1-400x400.jpg" alt="">
+               data-src="https://img.gqkorea.co.kr/gq/2026/08/style_cccccccccccc9-400x400.jpg" alt="">
         </a>
       </li>
     </ul>

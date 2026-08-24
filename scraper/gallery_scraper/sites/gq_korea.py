@@ -1,8 +1,17 @@
 """GQ Korea Style-tab adapter.
 
-Selectors here were derived from a real article captured 2026-08-23; the shape
-is pinned by tests/fixtures/article_pictorial.html. When GQ restyles the site,
-this module and that fixture are what change — nothing downstream.
+Selectors here were derived from a real article captured 2026-08-23 and then
+re-checked against six captures spanning all five categories and a 2024 page;
+the shape is pinned by tests/fixtures/article_pictorial.html. When GQ restyles
+the site, this module and that fixture are what change — nothing downstream.
+
+That re-check is worth its own note. The first pass scoped body images to
+div.post_content on the strength of PLAN.md's claim that the container "keeps
+the author avatar and the recommendation modules out". It does not: both sit
+inside it on every capture, and a live --dry-run re-hosted four pieces of
+chrome per article while the suite stayed green, because the fixture had been
+built to agree with the code rather than with the page. _images carries the
+measured rule and the reasoning; the moral is in the fixture header.
 
 Three findings worth recording, because each contradicts an assumption PLAN.md
 made before anyone had looked at the markup:
@@ -79,10 +88,36 @@ _ROLES: dict[str, str] = {
 }
 
 # Rows that live in the same <dl> list as the credits but name a brand, a
-# campaign or a disclosure rather than a person. Letting these through would
-# put a brand into person_name and pollute the v1.1 credit-person filter.
+# publication or a disclosure rather than a person. Letting these through would
+# put a non-person into person_name and pollute the v1.1 credit-person filter.
+#
+# 출처 ("source") is here on evidence, not on principle: one capture prints
+# <dt>출처</dt><dd><a href="…">domain</a></dd>, the syndication row naming the
+# title an article was translated from. Its <dd> text is that site's hostname,
+# so before this entry every syndicated article stored a domain as a person.
+#
+# The screen is on the LABEL and never on the value, and that limit is
+# deliberate. Two captures print an organisation under 사진 — a stock-photo
+# agency on one, a phrase naming the brands rather than any photographer on the
+# other — so person_name still holds the occasional non-person after this
+# filter, and 사진 is emphatically NOT a candidate for this set: it is the
+# ordinary label for a real photographer on any shoot. No value-side test tells
+# an agency from a person's name without a curated vocabulary of agency words,
+# which fails open on every agency missing from it and, worse, fails closed on
+# any person whose name contains one — silently dropping a real credit. A
+# stored organisation is visible in the data and fixable downstream; a dropped
+# photographer is invisible. So the value is stored as printed, and the v1.1
+# credit-person filter must treat photographer values as person-or-organisation.
 _NON_PERSON_ROLES = frozenset(
-    {"sponsored by", "sponsor", "협찬", "제공", "in partnership with", "advertorial"}
+    {
+        "sponsored by",
+        "sponsor",
+        "협찬",
+        "제공",
+        "in partnership with",
+        "advertorial",
+        "출처",
+    }
 )
 
 # ---- listing endpoint, probed live 2026-08-23 (see README.md) --------------
@@ -118,7 +153,23 @@ _BLIND_DISCOVERY = (
 # timestamp, there is no timezone conversion to do here.
 _LISTING_DATE_FORMAT = "%Y.%m.%d"
 
+# ---- body-image scoping, measured against six captures --------------------
+#
+# Widths of the net, narrowest last. See _images for what each one lets in.
+_POST_CONTENT = "div.post_content"  # the whole article column, chrome included
+_CONTENT_WELL = "div.contt"  # the WordPress content well: editorial only
+
+# The one chrome container that lives *inside* the content well, plus the
+# <noscript> twin that wraps a duplicate of nearly every lazy-loaded image.
+# Both are matched anywhere below the well, not just as direct children.
+_CHROME_INSIDE_WELL = "noscript, .relate_group"
+
 _AT_SPLIT = re.compile(r"\s+at\s+", re.IGNORECASE)
+# One credit row can name several people. Measured: the stylist row on one
+# capture prints three comma-separated names. Only the ASCII comma occurs; the
+# Korean typographic separators (、·) appear nowhere in the captured credits,
+# so they are not guessed at here.
+_COMMA_SPLIT = re.compile(r"\s*,\s*")
 _WS = re.compile(r"\s+")
 
 
@@ -155,6 +206,39 @@ def split_person_and_agency(value: str) -> tuple[str, str | None]:
     if len(parts) == 2 and parts[0] and parts[1]:
         return parts[0].strip(), parts[1].strip()
     return cleaned, None
+
+
+def split_credit_people(value: str) -> tuple[tuple[str, str | None], ...]:
+    """One credit <dd> as (person, agency) pairs, in printed order.
+
+    Ten of the eleven credit rows in the six captures name one person; the
+    eleventh names THREE, as `이름, 이름, 이름 at 에이전시` — a stylist team
+    written out on one line, with the agency after the last of them.
+    Joining those into a single person_name — which is what happened before
+    this function existed, because split_person_and_agency only ever cut on
+    " at " — stored a string no credit-person filter can undo. article_credits
+    is one row per person, replace_credits numbers them by position, and
+    `unique (article_id, position)` lets several rows share a role, so one pair
+    per name is the shape the schema was built for.
+
+    The agency binds ONLY to the name it is written beside, so in the observed
+    line the first two people come back with agency None. The competing reading
+    — a trailing agency distributes over the whole list, since that is plausibly
+    why the editor wrote it once instead of three times — is rejected on two
+    grounds. First, this module's standing rule is that a null beats a guess:
+    normalize_role returns None rather than guessing a role, and an affiliation
+    the page never printed for those two people is the same kind of invention,
+    except that it lands in a column a reader will believe. Second, per-part
+    parsing needs no positional magic and so has no order to get wrong: it
+    already handles `A at X, B at Y`, where a distribute-the-trailing-agency
+    rule has to decide what a *leading* agency does. Reversing this decision is
+    one line, and test_gq_korea.py names the test that pins it.
+    """
+    pairs = (split_person_and_agency(part) for part in _COMMA_SPLIT.split(value))
+    # An empty part is a trailing or doubled comma. No capture prints one, but
+    # a blank <dd> reaches here as a single empty part, and _credits relies on
+    # this filter for that case rather than testing the value itself.
+    return tuple((name, agency) for name, agency in pairs if name)
 
 
 def parse_listing_page(payload: object) -> tuple[ListingEntry, ...]:
@@ -205,6 +289,15 @@ def _listing_entry(post: object) -> ListingEntry | None:
     article filed under no subcategory, and a subcategory GQ adds tomorrow would
     otherwise take down the whole page; either value would fail the insert
     anyway, since article_category is a Postgres enum of the five children.
+
+    That skip is half of an invariant the parser holds the other half of:
+    GqKoreaAdapter._category *raises* on the same parent-only article, whose
+    breadcrumb is [홈, STYLE, <title>] with no subcategory in it. The halves
+    agree today — nothing that fails there can reach here — and they only stay
+    agreeing while both are read together, so each names the other. Widen this
+    filter to pass parent-only rows and every run starts dying on the page they
+    lead to; relax that raise to a default and discovery still never delivers
+    the articles the default was written for.
     """
     if not isinstance(post, Mapping):
         return None
@@ -384,17 +477,44 @@ class GqKoreaAdapter:
         PLAN.md picks the breadcrumb deliberately: an article page also carries
         "MORE LIKE THIS" and "MUST READ" modules advertising other categories,
         and the breadcrumb is the only element describing *this* article.
+
+        The trail is [홈, STYLE, <subcategory>, <title>] on five of the six
+        captures and [홈, STYLE, <title>] on the sixth — the LAST crumb is the
+        article's own title, never its category. See below for why that decides
+        the scan direction, and what the sixth shape means.
         """
         nav = tree.css_first('nav[aria-label="breadcrumb"]')
         if nav is None:
             raise ValueError("no breadcrumb found — page layout changed")
 
         crumbs = [_clean(li.text()) for li in nav.css("li")]
-        for crumb in reversed(crumbs):
+
+        # Document order, not reversed. Scanning backwards evaluates the title
+        # crumb FIRST on every live page and reaches the real subcategory only
+        # because a headline rarely happens to *be* a category name — but two
+        # of the five are ordinary English words a GQ headline can consist of,
+        # and the first article titled exactly "news" or "item" would be filed
+        # by its headline instead of by its section, silently and forever.
+        # Forwards, the two crumbs ahead of the subcategory are 홈 and STYLE,
+        # and neither is a subcategory, so the first match is the one that
+        # describes the article.
+        for crumb in crumbs:
             candidate = crumb.lower()
             if candidate in CATEGORIES:
                 return candidate
 
+        # [홈, STYLE, <title>]: an article filed under the parent term only,
+        # which one capture is. Raising is right — article_category is a
+        # Postgres enum of the five children, so there is nothing to store and
+        # any fallback would be a wrong guess about a real article.
+        #
+        # This is the article half of an invariant whose other half is in
+        # _listing_entry: discovery drops exactly these rows, because their
+        # post_terms is the parent "STYLE" and CATEGORIES holds only the
+        # children. So the pipeline never fetches one and this raise is
+        # unreachable in a normal run — it fires only for a hand-fed URL or
+        # after someone widens one half without the other. The two are one edit
+        # apart from disagreeing, which is why each names the other.
         raise ValueError(f"breadcrumb has no known Style category: {crumbs}")
 
     def _title(self, tree: HTMLParser) -> str:
@@ -422,8 +542,23 @@ class GqKoreaAdapter:
         return stamp.astimezone(KST).date()
 
     def _author(self, tree: HTMLParser) -> tuple[str | None, str | None]:
-        """First byline. Articles can credit several authors; the rest appear in
-        the credits block, so only the primary one goes on the article row."""
+        """The by-line's linked author — deliberately the linked one, and only one.
+
+        Measured on all six captures: span.author holds exactly ONE
+        <a href="/author/…">, never two. A co-author is printed as bare text
+        beside it — `<a href="/author/…">이름</a>, 다른 이름` on one of the six.
+        So reading the span's text instead of the link would put ", 다른 이름"
+        into author_name, and there is no second href to put anywhere.
+
+        Keeping only the link loses nothing. articles.author_name and
+        author_url are single nullable columns describing one person, PLAN.md
+        puts further contributors in credits, and on the one capture that has a
+        co-author div.info_area already credits that same name under 글
+        (writer) — so the data is stored, with its role, in the place built for
+        it. Splitting the span on commas would duplicate that credit into a
+        column that cannot hold a URL for it. The fixture encodes the observed
+        by-line and test_gq_korea.py pins both halves of this choice.
+        """
         for link in tree.css('a[href*="/author/"]'):
             href = link.attributes.get("href") or ""
             name = _clean(link.text())
@@ -441,6 +576,11 @@ class GqKoreaAdapter:
 
         ul.tag_list sits inside the same container; scoping to <dl> keeps post
         tags out without needing to know what any given tag says.
+
+        One <dl> is one printed row and NOT necessarily one credit: the <dt> is
+        screened as a label (see _NON_PERSON_ROLES) and the <dd> can name
+        several people (see split_credit_people), so a row yields zero, one or
+        several Credits and the caller must not assume a row count.
         """
         info = tree.css_first("div.info_area")
         if info is None:
@@ -461,45 +601,125 @@ class GqKoreaAdapter:
             if role_raw.lower() in _NON_PERSON_ROLES:
                 continue
 
-            # split_person_and_agency cleans its own input and answers "" for a
-            # blank one, so this single check covers both an empty <dd> and a
-            # whitespace-only one — no separate emptiness test is needed above.
-            person_name, agency = split_person_and_agency(dd_node.text())
-            if not person_name:
-                continue
-
-            credits.append(
-                Credit(
-                    role_raw=role_raw,
-                    person_name=person_name,
-                    role=normalize_role(role_raw),
-                    agency=agency,
+            # One row, one *or more* people — see split_credit_people. It cleans
+            # its own input and answers () for a blank one, so an empty <dd> and
+            # a whitespace-only one both fall out here with no separate check.
+            role = normalize_role(role_raw)
+            for person_name, agency in split_credit_people(dd_node.text()):
+                credits.append(
+                    Credit(
+                        role_raw=role_raw,
+                        person_name=person_name,
+                        role=role,
+                        agency=agency,
+                    )
                 )
-            )
         return tuple(credits)
 
     def _images(self, tree: HTMLParser) -> tuple[ImageRef, ...]:
         """Body images only, in source order, deduplicated.
 
-        Scoping to div.post_content is what keeps the author avatar and the
-        recommendation modules out — PLAN.md names that as the main hazard.
+        Scope is div.post_content > … > div.contt, minus two things nested
+        inside it. PLAN.md said div.post_content alone "keeps the author avatar
+        and the recommendation modules out"; six captures say it does not, and
+        a live --dry-run re-hosted four pieces of chrome per article before
+        anyone checked. What div.post_content actually contains, alongside the
+        editorial well:
+
+        * div.profile_sub — the author profile, a *direct child* of
+          div.post_content and a sibling of div.editor. It holds a 600x600
+          avatar (a shared theme placeholder on advertorials, so the same file
+          over and over).
+        * div.relate_group.relate_content — the "MORE LIKE THIS" module, three
+          500x500 thumbnails belonging to three *other* articles. It is nested
+          inside div.contt, so neither div.editor nor div.contt excludes it on
+          its own and it has to be named.
+        * div.news_group, div.banner_area, div.m-hotpick, div.info_area,
+          div.ad_wrapper, div.sponsored-txt, ul.share_list — recommendation
+          surfaces, ad slots and share bars. All image-free in the raw HTML
+          today because they hydrate client-side, which is exactly why a rule
+          scoped above div.contt looks correct and rots the day one of them
+          prints a thumbnail server-side.
+
+        Over-collecting here is not cosmetic: every extra <img> is downloaded,
+        re-hosted and stored as *this* article's gallery, so a stranger's
+        thumbnail and a duplicated avatar end up in the grid and eat the 1 GB
+        free tier. On the sneakers capture the old rule returned more chrome
+        than content — four wrong out of seven.
+
+        The well is an allowlist and the two exclusions inside it a denylist,
+        deliberately in that order: an editorial block type GQ enables tomorrow
+        appears inside div.contt and is collected, where an allowlist of known
+        blocks would silently drop it. That is not hypothetical. Four unrelated
+        editorial shapes are already in the captures, and between them they
+        account for all 44 editorial images with no remainder:
+
+        * figure.wp-block-image — 24 images, on five of the six captures
+        * ul.item_list.shopping_list > li.full.shopping_item > div.thum —
+          10 images, all on the "item" capture, which has no figure at all
+        * div.gallery_wrap > … > div.swiper-slide (Swiper) — 8 images
+        * div.content_columns.two > div.content_column — 2 images
+
+        So a figure-scoped rule loses a whole article; one narrowed to figures,
+        columns and direct children of div.contt loses 18 of the 44. Adding
+        `ul` or `li` to the denylist erases the "item" capture outright. And
+        div.thum, tempting as a chrome marker because the relate_group uses it,
+        is the wrapper those same 10 editorial images sit in — blocklisting it
+        costs the article its entire gallery. All four shapes are in the
+        fixture, and tests assert each one still reaches the output.
+
+        <noscript> is excluded even though nothing needs it to be today: it
+        wraps a byte-identical twin of nearly every lazy image, and the URL
+        dedupe below currently collapses those twins by accident of document
+        order. That is load-bearing work the dedupe was not written to do, and
+        a twin carrying a different crop would append a phantom image.
+
         Dedup matters downstream: the same URL twice in one body would become
         two rows sharing (article_id, content_hash), and a single INSERT
         carrying both fails with cardinality_violation.
 
-        A missing container raises, like every other required field here: it is
-        one renamed class away in a theme update, and swallowing it would give
-        articles that parse cleanly with zero images. An empty container still
-        returns () — that is a content fact about a text-only post, not a
+        A missing container raises, like every other required field here: both
+        are one renamed class away in a theme update, and swallowing either
+        would give articles that parse cleanly with zero images. An empty well
+        still returns () — that is a content fact about a text-only post, not a
         structural surprise, and keeping the two apart is the whole point.
         """
-        body = tree.css_first("div.post_content")
+        # Both messages name their own selector, and no message is a prefix or
+        # a substring of the other. They used to share the words "post body",
+        # so one `match="post body"` test accepted either — and deleting this
+        # first raise in favour of `... or tree.root`, the exact widening the
+        # test was written to forbid, left the whole suite green.
+        body = tree.css_first(_POST_CONTENT)
         if body is None:
-            raise ValueError("no post body found — page layout changed")
+            raise ValueError(f"no {_POST_CONTENT} post body found — page layout changed")
+
+        # Scoped to `body`, not to the document: resolving the well page-wide
+        # would let a div.contt appearing earlier in the page — a sidebar, a
+        # module the theme adds tomorrow — win over the article's own.
+        well = body.css_first(_CONTENT_WELL)
+        if well is None:
+            raise ValueError(
+                f"post body has no {_CONTENT_WELL} content well — page layout changed"
+            )
+
+        # A set, and that is load-bearing rather than a style choice. Measured
+        # on selectolax 0.4.11: `==` between two nodes is STRUCTURAL — two
+        # distinct <img> elements with identical markup compare equal — while
+        # `hash()` is identity-based, so those same two hash differently. A set
+        # buckets by hash before it ever calls `==`, so `img in chrome` answers
+        # "is this the very node I collected?"; the same test against a list
+        # would fall back to `==` alone and drop any editorial image whose
+        # markup happens to match a recommendation thumbnail. Resolving once
+        # also beats walking each image's ancestors.
+        chrome = {
+            img for wrapper in well.css(_CHROME_INSIDE_WELL) for img in wrapper.css("img")
+        }
 
         seen: set[str] = set()
         images: list[ImageRef] = []
-        for img in body.css("img"):
+        for img in well.css("img"):
+            if img in chrome:
+                continue
             url = self._image_url(img)
             if url is None or url in seen:
                 continue
@@ -514,6 +734,30 @@ class GqKoreaAdapter:
         `src` holds a base64 placeholder while the page is unhydrated, so
         data-src wins where present; some images are not lazy-loaded at all and
         carry the real URL in src directly.
+
+        We take the rendition the page itself serves and never the widest one
+        offered, and that is a decision rather than an oversight — the srcset
+        does routinely advertise something bigger. Measured over the 44
+        editorial images in the six captures: data-src is always WordPress's
+        largest *derivative* — its long edge is 1400px on 31 of them and 930px
+        on 11, and nothing in a srcset ever beats it except the unresized
+        original, which carries no -WxH suffix and is sized only by its width
+        descriptor (1205w … 1920w), and four wider derivatives on two of the
+        captures. 24 of the 44 have such a candidate, and taking the best one
+        at or above images.MAX_EDGE would lift all 24 off their 1400px long
+        edge — 21 to a full 1600px, three to 1462px.
+
+        Against that: +14% on the long edge is ~+31% more pixels stored for
+        each of those 21 and ~+18% across the corpus, charged against a 1 GB
+        free tier that is the binding constraint on how long this gallery can
+        keep running — and the download is a full-resolution master whose byte
+        size the markup does not advertise anywhere, so the fetch cost cannot
+        be measured from a capture at all, only discovered in production
+        against a site we are trying to be light on. A 1400px source already
+        exceeds what the grid renders. So the cheap, page-sanctioned rendition
+        wins, and the srcset stays what it is below: a last-resort fallback for
+        the images that carry no data-src, where its FIRST candidate is the
+        same largest derivative on every capture that has one.
         """
         for attr in ("data-src", "src"):
             value = _clean(img.attributes.get(attr))
