@@ -1,0 +1,79 @@
+{
+  "current_term": {
+    "tax1_term": {
+      "term_id": 56,
+      "name": "STYLE",
+      "slug": "style",
+      "term_group": 0,
+      "term_taxonomy_id": 56,
+      "taxonomy": "category",
+      "description": "",
+      "parent": 0,
+      "count": 7452,
+      "filter": "raw"
+    }
+  },
+  "current_posts": [
+    {
+      "permalink": "https://www.gqkorea.co.kr/2026/08/21/%ec%97%ac%eb%a6%84%ec%9d%98-%eb%81%9d%ec%97%90%ec%84%9c-%ea%b2%80%ec%a0%95/",
+      "post_date": "2026.08.21",
+      "post_id": "500001",
+      "post_title": "여름의 끝에서, 검정",
+      "post_terms": "pictorial",
+      "post_editors": "김에디터",
+      "post_thumbnail_url": "https://img.gqkorea.co.kr/gq/2026/08/style_aaaaaaaaaaaa1-500x500.jpg"
+    },
+    {
+      "permalink": "https://www.gqkorea.co.kr/2026/08/20/%ec%9d%b4%eb%8b%ac%ec%9d%98-%ec%95%84%ec%9d%b4%ed%85%9c/",
+      "post_date": "2026.08.20",
+      "post_id": "500002",
+      "post_title": "이달의 아이템 다섯 가지",
+      "post_terms": "item",
+      "post_editors": "김에디터, 박기자",
+      "post_thumbnail_url": "https://img.gqkorea.co.kr/gq/2026/08/style_aaaaaaaaaaaa2-500x500.jpg"
+    },
+    {
+      "permalink": "https://www.gqkorea.co.kr/2026/08/19/weekly-news-brief/",
+      "post_date": "2026.13.45",
+      "post_id": "500003",
+      "post_title": "이번 주 새 소식",
+      "post_terms": "news",
+      "post_editors": "이기자",
+      "post_thumbnail_url": "https://img.gqkorea.co.kr/gq/2026/08/style_aaaaaaaaaaaa3-500x500.jpg"
+    },
+    {
+      "permalink": "https://www.gqkorea.co.kr/2026/08/18/%ec%8a%a4%ed%82%a8%ec%bc%80%ec%96%b4-%eb%a3%a8%ed%8b%b4-%ec%a0%90%ea%b2%80/",
+      "post_date": "2026.08.18",
+      "post_id": "500004",
+      "post_title": "스킨케어 루틴 점검",
+      "post_terms": "grooming"
+    },
+    {
+      "permalink": "https://www.gqkorea.co.kr/2026/08/17/%ec%83%88-%ec%9a%b4%eb%8f%99%ed%99%94-%ec%9d%b4%ec%95%bc%ea%b8%b0/",
+      "post_date": "2026.08.17",
+      "post_id": "500005",
+      "post_title": "새 운동화 이야기",
+      "post_terms": "sneakers",
+      "post_editors": "박기자",
+      "post_thumbnail_url": "https://img.gqkorea.co.kr/gq/2026/08/style_aaaaaaaaaaaa5-500x500.jpg"
+    },
+    {
+      "permalink": "https://www.gqkorea.co.kr/2026/08/16/style-parent-only/",
+      "post_date": "2026.08.16",
+      "post_id": "500006",
+      "post_title": "부모 카테고리에만 걸린 글",
+      "post_terms": "STYLE",
+      "post_editors": "GQ PROMOTION",
+      "post_thumbnail_url": "https://img.gqkorea.co.kr/gq/2026/08/style_aaaaaaaaaaaa6-500x500.jpg"
+    },
+    {
+      "permalink": "https://www.gqkorea.co.kr/2026/08/15/unknown-taxonomy-row/",
+      "post_date": "2026.08.15",
+      "post_id": "500007",
+      "post_title": "알 수 없는 분류의 글",
+      "post_terms": "watches",
+      "post_editors": "이기자",
+      "post_thumbnail_url": "https://img.gqkorea.co.kr/gq/2026/08/style_aaaaaaaaaaaa7-500x500.jpg"
+    }
+  ]
+}

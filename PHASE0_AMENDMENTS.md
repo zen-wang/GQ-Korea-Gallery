@@ -109,3 +109,40 @@ section wins.
    phone-only audience. Structural dimensions (gutter, hairlines, the 44px tap
    target, tab-bar and sheet-row heights, frame max-width) stay `px` so layout
    and touch targets hold steady while text scales.
+
+## H. Phase 3 findings that overturn PLAN.md assumptions (2026-08-23)
+
+Recorded here rather than edited into PLAN.md, per this document's rule: where
+the two conflict, this one wins.
+
+1. **Playwright is not a dependency of this project.** PLAN.md names it in the
+   tech stack, the architecture diagram and the per-run flow, on the assumption
+   that lazy-loaded bodies and client-hydrated category grids both need a
+   browser. Neither does. Article images ship their real URL in `data-src` in
+   the raw HTML, and `robots.txt` explicitly allows the `admin-ajax.php`
+   endpoint the grid's own loader posts to. The dependency is gone from
+   `pyproject.toml` and the install step is gone from `scrape.yml` — one HTTP
+   request per article instead of a headless browser session, which is both
+   cheaper and considerably politer.
+
+2. **The WordPress REST API is closed** (`/wp-json/` → 401), so the structured
+   shortcut PLAN.md hoped for is unavailable and HTML parsing stands.
+
+3. **Discovery is one stream, not five.** PLAN.md §Scraper Design crawls each
+   `/style/{category}/` listing separately. The ajax endpoint returns every
+   subcategory in one reverse-chronological stream and carries the subcategory
+   on each row, so per-category crawling would be five times the requests for
+   the same result.
+
+4. **`articles.content_hash` doubles as the completion marker.** PLAN.md
+   introduces it only for edit detection. Phase 3 also uses NULL-vs-set to mean
+   "this article is not yet fully stored", which is what makes incremental runs
+   resumable rather than stranding whatever a capped or interrupted run did not
+   reach. `supabase/README.md` and `scraper/README.md` carry the detail.
+
+5. **Fixtures carry invented content.** PLAN.md's verification section and the
+   schema comments originally quoted the real by-lines and agency from the
+   captured article. The repo is public, so every person and agency name in
+   fixtures, docs and seed data is now an invention. Structure is copied
+   faithfully; text is not.
+

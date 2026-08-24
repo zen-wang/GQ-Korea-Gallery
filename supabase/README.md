@@ -62,16 +62,31 @@ already: a test environment that is not the target. Closing it is
   `20260823222834`. Public with unguessable paths so `<img src>` caches; only
   service_role can write, because `storage.objects` has RLS on and no policies.
 
-## Left for Phase 3
+## What Phase 3 does with this schema
 
-- The pipeline must **collapse duplicate images in memory before sending a
-  batch**. A body that repeats a byte-identical image yields two rows with the
-  same `(article_id, content_hash)`, and one INSERT carrying both fails with
+Both constraints below are honoured by `scraper/gallery_scraper/`, and each has
+a test that fails if it stops being:
+
+- Duplicate images are **collapsed in memory before the batch is sent**. A body
+  that repeats a byte-identical image yields two rows with the same
+  `(article_id, content_hash)`, and one INSERT carrying both fails with
   `cardinality_violation` regardless of the constraint.
-- The pipeline should treat `images` as **insert-or-update, never delete**.
-  `reactions.image_id` and `list_images.image_id` cascade, so deleting and
-  re-inserting an image row during reconciliation would silently drop it out of
-  everyone's saved lists.
+- `images` is **insert-or-update, never delete**. `reactions.image_id` and
+  `list_images.image_id` cascade, so deleting and re-inserting during
+  reconciliation would silently drop an image out of everyone's saved lists.
 
-Console steps (creating the project, invite-only auth, R2, secrets) are in
+One column gained a second job. **`articles.content_hash` is the pipeline's
+completion marker**: written NULL on upsert, filled in only once every image of
+that article has been stored. "Already have it" therefore means *content_hash is
+not null*, not *a row exists* — which is what lets a capped, timed-out or
+part-failed run be finished by the next one instead of being stranded behind it.
+`scraper/README.md` explains why that distinction is load-bearing.
+
+Note the gap between that and the column's original purpose: nothing yet
+*compares* a stored hash against a freshly computed one, so an edited article is
+currently skipped whatever its digest says. The digest is a faithful record of
+which version was stored; wiring it up to actually detect edits is future work,
+and the hash already covers every field it would need.
+
+Console steps (creating the project, invite-only auth, Storage, secrets) are in
 [../docs/SETUP.md](../docs/SETUP.md).

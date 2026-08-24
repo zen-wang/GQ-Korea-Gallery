@@ -1,18 +1,41 @@
 name: Scrape GQ Korea
 
 on:
+  # Daily, and deliberately not only for the articles: a free Supabase project
+  # pauses after a week idle, and this run is what keeps it awake
+  # (PLAN.md §Scheduling).
+  schedule:
+    - cron: "17 21 * * *" # 06:17 KST daily
   workflow_dispatch:
-  # Uncomment when the Phase 3 pipeline lands. The daily run also serves as
-  # the Supabase free-tier keep-alive (PLAN.md §Scheduling).
-  # schedule:
-  #   - cron: "17 21 * * *" # 06:17 KST daily
+    inputs:
+      max_articles:
+        description: "Cap the run at N articles (blank = no cap; a backfill chunk is what this is for)"
+        required: false
+        default: ""
+      max_pages:
+        description: "Listing pages to walk (50 articles per page)"
+        required: false
+        default: "3"
+      dry_run:
+        description: "Fetch and re-encode, but write nothing to Supabase"
+        type: boolean
+        default: false
 
+# The scraper only ever writes to Supabase; nothing here touches the repo.
 permissions:
   contents: read
+
+# Two runs at once would fetch the same listing twice and race on the same
+# rows. A queued run is fine — cancelling one mid-article is not, because it
+# can leave an article stored with only some of its images.
+concurrency:
+  group: scrape-gq-korea
+  cancel-in-progress: false
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: scraper
@@ -21,9 +44,39 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # No browser install: discovery goes through the admin-ajax endpoint
+      # robots.txt explicitly allows, and article images ship their real URL in
+      # data-src, so nothing in this pipeline renders a page.
       - run: pip install -e .
-      - run: playwright install --with-deps chromium
-      - run: python -m gallery_scraper.pipeline
+      - name: Scrape
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # `inputs` is empty on a schedule, so each falls back to the value a
+          # nightly incremental run wants. The cap is the one that matters: left
+          # blank, a first run — or the first after a Supabase restore — would
+          # take everything discovery returns, up to 3 x 50 = 150 articles and
+          # ~1,650 requests at MIN_INTERVAL, which overruns timeout-minutes: 60
+          # and eats a large slice of the 1 GiB Storage tier in a single night.
+          # 20 articles is ~7 minutes of requests and ~120 MiB worst case, and
+          # nothing is lost by capping: articles are only marked complete once
+          # their images land, so tomorrow's run continues where this one
+          # stopped. A dispatch overrides it, and a dispatch with the field
+          # blank is the deliberate way to ask for an uncapped run.
+          MAX_ARTICLES: ${{ github.event_name == 'schedule' && '20' || inputs.max_articles }}
+          MAX_PAGES: ${{ inputs.max_pages || '3' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          # A little slower than the default: politeness costs nothing here,
+          # since an incremental run makes a handful of requests.
+          MIN_INTERVAL: "1.5"
+        run: |
+          args=(--max-pages "$MAX_PAGES" --min-interval "$MIN_INTERVAL")
+          # `if` rather than `[ … ] && …`: the step runs under `bash -e`, where a
+          # trailing false test would end it as a failure.
+          if [ -n "$MAX_ARTICLES" ]; then args+=(--max-articles "$MAX_ARTICLES"); fi
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          echo "flags: ${args[*]}"
+          # A non-zero exit here is the health check: either articles were
+          # discovered and none parsed (the markup moved), or every image failed
+          # (the CDN or the storage bucket did). Red is the point.
+          python -m gallery_scraper.pipeline "${args[@]}"

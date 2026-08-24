@@ -2,18 +2,29 @@
 <!--
   Structural fixture for the GQ Korea article parser.
 
-  The DOM shape, class names and attribute patterns are copied faithfully from a
-  real gqkorea.co.kr article (captured 2026-08-23). The *content* is synthetic:
-  invented titles, names and agencies. This repo is public, so republishing the
-  publication's prose would be redistribution — and the parser only cares about
-  structure, so nothing is lost by substituting the text.
+  Real DOM structure, invented content. The element tree, class names, attribute
+  patterns and URL shapes are copied faithfully from a real gqkorea.co.kr article
+  (captured 2026-08-23); every word of text in it is made up. This repo is
+  public, and the publication's prose and the individuals' names are not ours to
+  republish. This header is where that policy is written down; the module
+  docstrings of tests/test_discovery.py and tests/test_pipeline.py point back at
+  it for the fixtures and stand-ins they build. The parser only reads structure,
+  so substituting the text costs the tests nothing.
+
+  That applies to the credits below in particular: every person and every agency
+  named here is an invention, not a real by-line lifted from the captured page.
 
   Edge cases deliberately encoded here, each covered by a test:
     - credits with and without the "이름 at 에이전시" suffix
     - a non-person credit row (SPONSORED BY) that must not become a person
+    - half-filled credit rows — a <dl> missing its <dt> or its <dd>, a blank
+      role, a blank value — which is what the CMS emits when an editor leaves a
+      field empty, and which must be skipped rather than stored as a credit
     - tag_list sitting next to the credit dl list and easily confused with it
     - lazy images: real URL in data-src, src holding a base64 placeholder
     - a non-lazy image whose real URL is in src
+    - a lazy image carrying data-src *and* data-srcset, where data-src wins
+    - a lazy image carrying only a srcset, the last fallback in _image_url
     - a tracking pixel and a logo that must NOT be collected
     - images outside the body (author avatar, MUST READ module) that must NOT
       be collected — PLAN.md calls this out as the main scoping hazard
@@ -30,7 +41,7 @@
 </head>
 <body class="post-template-default single single-post postid-400001 single-format-standard">
 
-<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=471731369875124&ev=PageView&noscript=1" />
+<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=000000000000000&ev=PageView&noscript=1" />
 
 <header>
   <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC" width="106" height="56" alt="GQ" data-src="https://www.gqkorea.co.kr/wp-content/themes/gq/assets/images/logo.svg">
@@ -69,6 +80,11 @@
          data-src="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg"
          data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-1400x1867.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa3-700x933.jpg 700w">
 
+    <!-- lazy with no data-src at all: only a srcset carries the real URLs -->
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
+         width="1400" height="933" alt=""
+         data-srcset="https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa4-1400x933.jpg 1400w, https://img.gqkorea.co.kr/gq/2026/07/style_aaaaaaaaaaaa4-700x467.jpg 700w">
+
     <!-- duplicate of the first image: same URL appearing twice in one body -->
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGoAAAA4AQAAAAA9HFDGAAAAAnRSTlMAAHaTzTgAAAAQSURBVCjPY2AYBaNgFFAKAANIAAFEbUeRAAAAAElFTkSuQmCC"
          width="1400" height="933" alt=""
@@ -97,12 +113,17 @@
       <li><a href="/tag/화보/">화보</a></li>
       <li><a href="/tag/블랙/">블랙</a></li>
     </ul>
-    <dl><dt>포토그래퍼</dt><dd>장기평</dd></dl>
-    <dl><dt>패션 에디터</dt><dd>김영훈</dd></dl>
-    <dl><dt>모델</dt><dd>홍태준 at 에스팀</dd></dl>
-    <dl><dt>헤어</dt><dd>한지선 at 비트앤부트</dd></dl>
-    <dl><dt>메이크업</dt><dd>이신애</dd></dl>
+    <dl><dt>포토그래퍼</dt><dd>서윤재</dd></dl>
+    <dl><dt>패션 에디터</dt><dd>문지환</dd></dl>
+    <dl><dt>모델</dt><dd>표도현 at 라온엠</dd></dl>
+    <dl><dt>헤어</dt><dd>여도하 at 청연에이전시</dd></dl>
+    <dl><dt>메이크업</dt><dd>백서리</dd></dl>
     <dl><dt>SPONSORED BY</dt><dd>어느 브랜드</dd></dl>
+    <!-- half-filled rows, as printed when a credit field is left blank -->
+    <dl><dt>스타일리스트</dt></dl>
+    <dl><dd>역할이 없는 줄</dd></dl>
+    <dl><dt>어시스턴트</dt><dd>   </dd></dl>
+    <dl><dt></dt><dd>이름만 남은 줄</dd></dl>
   </div>
 
 </article>

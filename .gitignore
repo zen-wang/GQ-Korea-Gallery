@@ -20,3 +20,8 @@ __pycache__/
 
 # TS incremental build state
 *.tsbuildinfo
+
+# Coverage artifacts (docs/SETUP.md and supabase/README.md both document --cov runs)
+.coverage
+.coverage.*
+htmlcov/

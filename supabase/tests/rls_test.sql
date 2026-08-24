@@ -34,8 +34,8 @@ values (:'art', 'https://www.gqkorea.co.kr/test-a1', 'pictorial', '블랙 앤 �
         '2026-07-12', '김에디터');
 
 insert into public.article_credits (article_id, position, role_raw, role, person_name, agency) values
-  (:'art', 2, '모델',       'model',        '홍태준', '에스팀'),
-  (:'art', 1, '포토그래퍼', 'photographer', '장기평', null);
+  (:'art', 2, '모델',       'model',        '표도현', '라온엠'),
+  (:'art', 1, '포토그래퍼', 'photographer', '서윤재', null);
 
 insert into public.images
   (id, article_id, storage_path, public_url, thumb_url, width, height, position,

@@ -79,8 +79,8 @@ create table public.article_credits (
   position    int  not null,
   role_raw    text not null,   -- as printed on the page, e.g. '포토그래퍼'
   role        text,            -- normalized, e.g. 'photographer'
-  person_name text not null,   -- e.g. '장기평'
-  agency      text,            -- the 'at ___' suffix, e.g. '에스팀'
+  person_name text not null,   -- e.g. '서윤재'
+  agency      text,            -- the 'at ___' suffix, e.g. '라온엠'
   -- Safe to make unique here, unlike on images below, because a re-scrape
   -- replaces an article's credits wholesale (delete then insert inside one
   -- transaction) rather than upserting them row by row.

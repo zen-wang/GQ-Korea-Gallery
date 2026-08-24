@@ -119,8 +119,8 @@ create table article_credits (              -- one row per role/person
   article_id uuid not null references articles(id) on delete cascade,
   role_raw   text not null,                 -- '포토그래퍼'
   role       text,                          -- normalized 'photographer'
-  person_name text not null,                -- '장기평'
-  agency     text                           -- '에스팀' (the "at ___" part), nullable
+  person_name text not null,                -- '서윤재'
+  agency     text                           -- '라온엠' (the "at ___" part), nullable
 );
 
 create table images (
@@ -189,7 +189,7 @@ create table list_images (
    - **Category** ← breadcrumb segment (`홈 > STYLE > {category}`) — reliable, avoids "MORE LIKE THIS / MOST POPULAR" category confusion.
    - **Title / date / author(+url)** ← header block.
    - **Body images** ← scoped to the article body container only (exclude recommendation modules); resolve real URLs from `data-src`/`srcset`/rendered `<img>`.
-   - **Credits** ← bottom block parsed into `{role_raw, role, person_name, agency}`, handling the `name at agency` form (e.g., `홍태준 at 에스팀`).
+   - **Credits** ← bottom block parsed into `{role_raw, role, person_name, agency}`, handling the `name at agency` form (e.g., `표도현 at 라온엠`).
 3. Download images → optimize (resize ≤1600px, WebP + small thumb) → upload to Supabase Storage → upsert `articles`/`article_credits`/`images`.
 
 **Robustness/politeness:** rate-limit + concurrency cap, custom UA, respect `robots.txt`, retry/backoff, UTF-8 throughout, dedupe by `source_url` + image `content_hash`. Log parse-failure counts (alert if a run finds 0 new or error rate spikes → likely markup change).
@@ -278,7 +278,7 @@ Gallery grid + motion reveals; lightbox + attributes; filters/search; auth gate;
 
 ## Verification (end-to-end)
 
-1. **Scraper (single article):** run pipeline on the pictorial example → assert 1 `articles` row with `category='pictorial'`, 6 `article_credits` rows (photographer 장기평 … model 홍태준 + agency 에스팀 …), ~12 `images` rows, and matching objects in the `gallery` bucket.
+1. **Scraper (single article):** run pipeline on the pictorial example → assert 1 `articles` row with `category='pictorial'`, 6 `article_credits` rows (photographer 서윤재 … model 표도현 + agency 라온엠 …), ~12 `images` rows, and matching objects in the `gallery` bucket.
 2. **Incremental:** re-run → confirm no duplicates (already-seen skipped).
 3. **Workflow:** trigger `scrape.yml` via `workflow_dispatch` → completes, inserts rows.
 4. **Frontend (local `npm run dev`):** sign in via magic link → grid renders with fade-up motion → click image → lightbox shows full attributes → like/dislike toggles → create list + add image (shows as chip) → filters (category/author/credit) + title search work.
